@@ -11,27 +11,25 @@ import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.use(authenticate);
+
 router.get(
   "/",
-  authenticate,
   getInventory
 );
 
 router.get(
   "/low-stock",
-  authenticate,
   getLowStock
 );
 
 router.get(
   "/movements",
-  authenticate,
   getStockMovements
 );
 
 router.post(
   "/adjust",
-  authenticate,
   adjustStock
 );
 

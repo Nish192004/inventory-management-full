@@ -1,45 +1,42 @@
 import express from "express";
 
 import {
-  listProducts,
-  getProduct,
-  addProduct,
-  editProduct,
-  removeProduct,
-} from "../controllers/productController.js";
+  getCustomers,
+  getCustomerById,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+} from "../controllers/customerController.js";
 
 import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.use(authenticate);
+
 router.get(
   "/",
-  authenticate,
-  listProducts
+  getCustomers
 );
 
 router.get(
   "/:id",
-  authenticate,
-  getProduct
+  getCustomerById
 );
 
 router.post(
   "/",
-  authenticate,
-  addProduct
+  createCustomer
 );
 
 router.put(
   "/:id",
-  authenticate,
-  editProduct
+  updateCustomer
 );
 
 router.delete(
   "/:id",
-  authenticate,
-  removeProduct
+  deleteCustomer
 );
 
 export default router;

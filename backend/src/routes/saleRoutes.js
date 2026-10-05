@@ -10,21 +10,20 @@ import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.use(authenticate);
+
 router.get(
   "/",
-  authenticate,
   getSales
 );
 
 router.get(
   "/:id",
-  authenticate,
   getSaleById
 );
 
 router.post(
   "/",
-  authenticate,
   createSale
 );
 

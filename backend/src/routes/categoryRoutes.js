@@ -1,45 +1,42 @@
 import express from "express";
 
 import {
-  listProducts,
-  getProduct,
-  addProduct,
-  editProduct,
-  removeProduct,
-} from "../controllers/productController.js";
+  getCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../controllers/categoryController.js";
 
 import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.use(authenticate);
+
 router.get(
   "/",
-  authenticate,
-  listProducts
+  getCategories
 );
 
 router.get(
   "/:id",
-  authenticate,
-  getProduct
+  getCategoryById
 );
 
 router.post(
   "/",
-  authenticate,
-  addProduct
+  createCategory
 );
 
 router.put(
   "/:id",
-  authenticate,
-  editProduct
+  updateCategory
 );
 
 router.delete(
   "/:id",
-  authenticate,
-  removeProduct
+  deleteCategory
 );
 
 export default router;

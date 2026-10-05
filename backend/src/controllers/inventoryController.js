@@ -1,78 +1,127 @@
 import prisma from "../config/prisma.js";
 
-export const getInventory = async (req, res, next) => {
-  try {
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    });
+const parseId = (value, name) => {
+  const id = Number(value);
 
-    res.json({
-      success: true,
-      data: products,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getLowStock = async (req, res, next) => {
-  try {
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-      },
-    });
-
-    const lowStock = products.filter(
-      (product) =>
-        product.quantity > 0 &&
-        product.quantity <= product.minStock
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw new Error(
+      `Invalid ${name}.`
     );
-
-    res.json({
-      success: true,
-      data: lowStock,
-    });
-  } catch (error) {
-    next(error);
   }
+
+  return id;
 };
 
-export const getStockMovements = async (
+const allowedTypes = [
+  "PURCHASE",
+  "SALE",
+  "RETURN",
+  "ADJUSTMENT",
+  "DAMAGE",
+];
+
+export const getInventory = async (
   req,
   res,
   next
 ) => {
   try {
-    const movements =
-      await prisma.stockMovement.findMany({
+    const products =
+      await prisma.product.findMany({
         include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              sku: true,
-            },
-          },
+          category: true,
         },
         orderBy: {
-          createdAt: "desc",
+          name: "asc",
         },
       });
 
     res.json({
       success: true,
-      data: movements,
+      data: products,
+      products,
     });
   } catch (error) {
     next(error);
   }
 };
+
+export const getLowStock = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const products =
+      await prisma.product.findMany({
+        where: {
+          quantity: {
+            gt: 0,
+          },
+        },
+        include: {
+          category: true,
+        },
+        orderBy: {
+          quantity: "asc",
+        },
+      });
+
+    const lowStock =
+      products.filter(
+        (product) =>
+          product.quantity <=
+          product.minStock
+      );
+
+    res.json({
+      success: true,
+      data: lowStock,
+      products: lowStock,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStockMovements =
+  async (req, res, next) => {
+    try {
+      const productId =
+        req.query.productId
+          ? parseId(
+              req.query.productId,
+              "product ID"
+            )
+          : undefined;
+
+      const movements =
+        await prisma.stockMovement.findMany({
+          where: productId
+            ? {
+                productId,
+              }
+            : {},
+          include: {
+            product: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+
+      res.json({
+        success: true,
+        data: movements,
+        movements,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 export const adjustStock = async (
   req,
@@ -87,65 +136,121 @@ export const adjustStock = async (
       note,
     } = req.body;
 
-    const adjustment = Number(quantity);
+    const parsedProductId =
+      parseId(
+        productId,
+        "product ID"
+      );
 
-    if (!Number.isInteger(adjustment)) {
-      return res.status(400).json({
-        success: false,
-        message: "Quantity must be an integer.",
-      });
+    const parsedQuantity =
+      Number(quantity);
+
+    if (
+      !Number.isInteger(
+        parsedQuantity
+      ) ||
+      parsedQuantity <= 0
+    ) {
+      throw new Error(
+        "Quantity must be a positive integer."
+      );
     }
 
-    const result = await prisma.$transaction(
-      async (tx) => {
-        const product =
-          await tx.product.findUnique({
-            where: {
-              id: Number(productId),
-            },
-          });
+    if (!allowedTypes.includes(type)) {
+      throw new Error(
+        `Invalid stock movement type. Allowed values: ${allowedTypes.join(
+          ", "
+        )}`
+      );
+    }
 
-        if (!product) {
-          throw new Error("Product not found.");
+    if (type === "SALE") {
+      throw new Error(
+        "Sales should be created from the Sales module."
+      );
+    }
+
+    const result =
+      await prisma.$transaction(
+        async (tx) => {
+          const product =
+            await tx.product.findUnique({
+              where: {
+                id: parsedProductId,
+              },
+            });
+
+          if (!product) {
+            throw new Error(
+              "Product not found."
+            );
+          }
+
+          let after;
+
+          if (
+            type === "PURCHASE" ||
+            type === "RETURN"
+          ) {
+            after =
+              product.quantity +
+              parsedQuantity;
+          } else if (
+            type === "DAMAGE"
+          ) {
+            after =
+              product.quantity -
+              parsedQuantity;
+          } else {
+            after =
+              product.quantity +
+              parsedQuantity;
+          }
+
+          if (after < 0) {
+            throw new Error(
+              `Insufficient stock. Available: ${product.quantity}.`
+            );
+          }
+
+          const updatedProduct =
+            await tx.product.update({
+              where: {
+                id: parsedProductId,
+              },
+              data: {
+                quantity: after,
+              },
+            });
+
+          const movement =
+            await tx.stockMovement.create({
+              data: {
+                productId:
+                  parsedProductId,
+                type,
+                quantity:
+                  parsedQuantity,
+                before:
+                  product.quantity,
+                after,
+                note:
+                  note ||
+                  `Stock ${type.toLowerCase()}`,
+              },
+            });
+
+          return {
+            product: updatedProduct,
+            movement,
+          };
         }
-
-        const before = product.quantity;
-        const after = before + adjustment;
-
-        if (after < 0) {
-          throw new Error(
-            "Stock cannot become negative."
-          );
-        }
-
-        const updated =
-          await tx.product.update({
-            where: {
-              id: product.id,
-            },
-            data: {
-              quantity: after,
-            },
-          });
-
-        await tx.stockMovement.create({
-          data: {
-            productId: product.id,
-            type,
-            quantity: Math.abs(adjustment),
-            before,
-            after,
-            note: note || "Manual stock adjustment",
-          },
-        });
-
-        return updated;
-      }
-    );
+      );
 
     res.json({
       success: true,
-      message: "Stock updated successfully.",
+      message:
+        "Stock adjusted successfully.",
       data: result,
     });
   } catch (error) {

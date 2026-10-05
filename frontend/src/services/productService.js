@@ -1,6 +1,57 @@
 import api from "./api";
 
-export const getProducts = async (params = {}) => (await api.get("/products", { params })).data;
-export const createProduct = async (data) => (await api.post("/products", data)).data;
-export const updateProduct = async (id, data) => (await api.put(`/products/${id}`, data)).data;
-export const deleteProduct = async (id) => (await api.delete(`/products/${id}`)).data;
+export const getProducts = async (
+  params = {}
+) => {
+  const response = await api.get(
+    "/products",
+    {
+      params,
+    }
+  );
+
+  return response.data;
+};
+
+export const getProductById = async (
+  id
+) => {
+  const response = await api.get(
+    `/products/${id}`
+  );
+
+  return response.data;
+};
+
+export const createProduct = async (
+  data
+) => {
+  const response = await api.post(
+    "/products",
+    data
+  );
+
+  return response.data;
+};
+
+export const updateProduct = async (
+  id,
+  data
+) => {
+  const response = await api.put(
+    `/products/${id}`,
+    data
+  );
+
+  return response.data;
+};
+
+export const deleteProduct = async (
+  id
+) => {
+  const response = await api.delete(
+    `/products/${id}`
+  );
+
+  return response.data;
+};

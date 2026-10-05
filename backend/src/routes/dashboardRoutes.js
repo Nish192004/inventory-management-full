@@ -2,6 +2,10 @@ import express from "express";
 
 import {
   getDashboardSummary,
+  getDashboardProducts,
+  getDashboardStock,
+  getDashboardSalesDetails,
+  getDashboardRevenueDetails,
 } from "../controllers/dashboardController.js";
 
 import {
@@ -15,11 +19,50 @@ import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
+
+// =====================================================
+// DASHBOARD SUMMARY
+// =====================================================
+
 router.get(
   "/summary",
   authenticate,
   getDashboardSummary
 );
+
+
+// =====================================================
+// READ-ONLY DASHBOARD DETAIL PAGES
+// =====================================================
+
+router.get(
+  "/products",
+  authenticate,
+  getDashboardProducts
+);
+
+router.get(
+  "/stock",
+  authenticate,
+  getDashboardStock
+);
+
+router.get(
+  "/sales-details",
+  authenticate,
+  getDashboardSalesDetails
+);
+
+router.get(
+  "/revenue-details",
+  authenticate,
+  getDashboardRevenueDetails
+);
+
+
+// =====================================================
+// EXISTING DASHBOARD ANALYTICS
+// =====================================================
 
 router.get(
   "/sales",

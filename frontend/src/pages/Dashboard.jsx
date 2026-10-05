@@ -8,6 +8,7 @@ import {
   XCircle,
   RefreshCw,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import StatCard from "../components/dashboard/StatCard";
 import SalesChart from "../components/dashboard/SalesChart";
@@ -55,17 +56,25 @@ const Dashboard = () => {
       ]);
 
       setSummary(summaryResponse?.data || summaryResponse || {});
+
       setSalesData(
         salesResponse?.data || salesResponse || []
       );
+
       setCategoryData(
         categoryResponse?.data || categoryResponse || []
       );
+
       setTopProducts(
-        topProductsResponse?.data || topProductsResponse || []
+        topProductsResponse?.data ||
+          topProductsResponse ||
+          []
       );
+
       setRecentActivity(
-        activityResponse?.data || activityResponse || []
+        activityResponse?.data ||
+          activityResponse ||
+          []
       );
     } catch (err) {
       console.error("Dashboard error:", err);
@@ -125,6 +134,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -148,35 +158,71 @@ const Dashboard = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Total Products"
-          value={Number(data.productCount || 0).toLocaleString("en-IN")}
-          icon={<Package className="h-5 w-5" />}
-        />
 
-        <StatCard
-          title="Total Stock"
-          value={Number(data.totalStock || 0).toLocaleString("en-IN")}
-          icon={<Boxes className="h-5 w-5" />}
-        />
+        {/* Total Products */}
+        <Link
+          to="/dashboard/products"
+          className="block transition hover:-translate-y-1 hover:shadow-md"
+        >
+          <StatCard
+            title="Total Products"
+            value={Number(
+              data.productCount || 0
+            ).toLocaleString("en-IN")}
+            icon={<Package className="h-5 w-5" />}
+          />
+        </Link>
 
-        <StatCard
-          title="Total Sales"
-          value={Number(data.salesCount || 0).toLocaleString("en-IN")}
-          icon={<ShoppingCart className="h-5 w-5" />}
-        />
+        {/* Total Stock */}
+        <Link
+          to="/dashboard/stock"
+          className="block transition hover:-translate-y-1 hover:shadow-md"
+        >
+          <StatCard
+            title="Total Stock"
+            value={Number(
+              data.totalStock || 0
+            ).toLocaleString("en-IN")}
+            icon={<Boxes className="h-5 w-5" />}
+          />
+        </Link>
 
-        <StatCard
-          title="Revenue"
-          value={`₹${Number(data.revenue || 0).toLocaleString("en-IN")}`}
-          icon={<IndianRupee className="h-5 w-5" />}
-        />
+        {/* Total Sales */}
+        <Link
+          to="/dashboard/sales"
+          className="block transition hover:-translate-y-1 hover:shadow-md"
+        >
+          <StatCard
+            title="Total Sales"
+            value={Number(
+              data.salesCount || 0
+            ).toLocaleString("en-IN")}
+            icon={<ShoppingCart className="h-5 w-5" />}
+          />
+        </Link>
+
+        {/* Revenue */}
+        <Link
+          to="/dashboard/revenue"
+          className="block transition hover:-translate-y-1 hover:shadow-md"
+        >
+          <StatCard
+            title="Revenue"
+            value={`₹${Number(
+              data.revenue || 0
+            ).toLocaleString("en-IN")}`}
+            icon={<IndianRupee className="h-5 w-5" />}
+          />
+        </Link>
+
       </div>
 
       {/* Alerts */}
       <div className="grid gap-4 sm:grid-cols-2">
+
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <div className="flex items-center gap-3">
+
             <div className="rounded-xl bg-amber-100 p-3">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
@@ -190,11 +236,13 @@ const Dashboard = () => {
                 {data.lowStock || 0}
               </p>
             </div>
+
           </div>
         </div>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <div className="flex items-center gap-3">
+
             <div className="rounded-xl bg-red-100 p-3">
               <XCircle className="h-5 w-5 text-red-600" />
             </div>
@@ -208,8 +256,10 @@ const Dashboard = () => {
                 {data.outOfStock || 0}
               </p>
             </div>
+
           </div>
         </div>
+
       </div>
 
       {/* Charts */}
@@ -219,6 +269,7 @@ const Dashboard = () => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
+
         <CategoryChart data={categoryData} />
 
         <StockHealth
@@ -226,13 +277,18 @@ const Dashboard = () => {
           lowStock={data.lowStock}
           outOfStock={data.outOfStock}
         />
+
       </div>
 
       {/* Tables */}
       <div className="grid gap-6 xl:grid-cols-2">
+
         <TopProducts products={topProducts} />
+
         <RecentActivity activities={recentActivity} />
+
       </div>
+
     </div>
   );
 };

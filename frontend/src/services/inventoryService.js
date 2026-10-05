@@ -9,15 +9,20 @@ export const getInventory = async (params = {}) => {
 };
 
 export const getLowStock = async () => {
-  const response = await api.get("/inventory/low-stock");
+  const response = await api.get(
+    "/inventory/low-stock"
+  );
 
   return response.data;
 };
 
-export const getStockMovements = async (params = {}) => {
-  const response = await api.get("/inventory/movements", {
-    params,
-  });
+export const getStockMovements = async (
+  params = {}
+) => {
+  const response = await api.get(
+    "/inventory/movements",
+    { params }
+  );
 
   return response.data;
 };

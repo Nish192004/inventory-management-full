@@ -14,8 +14,11 @@ export const getSaleById = async (id) => {
   return response.data;
 };
 
-export const createSale = async (saleData) => {
-  const response = await api.post("/sales", saleData);
+export const createSale = async (data) => {
+  const response = await api.post(
+    "/sales",
+    data
+  );
 
   return response.data;
 };

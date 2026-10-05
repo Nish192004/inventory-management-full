@@ -1,10 +1,12 @@
 import React from "react";
+
 import {
   LayoutDashboard,
   Package,
-  Boxes,
+  Warehouse,
   ShoppingCart,
-  Truck,
+  ShoppingBag,
+  Building2,
   Users,
   Tags,
   BarChart3,
@@ -12,59 +14,98 @@ import {
 
 import { NavLink } from "react-router-dom";
 
-const menuItems = [
-  {
-    name: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Products",
-    path: "/products",
-    icon: Package,
-  },
-  {
-    name: "Inventory",
-    path: "/inventory",
-    icon: Boxes,
-  },
-  {
-    name: "Sales",
-    path: "/sales",
-    icon: ShoppingCart,
-  },
-  {
-    name: "Purchases",
-    path: "/purchases",
-    icon: Truck,
-  },
-  {
-    name: "Suppliers",
-    path: "/suppliers",
-    icon: Users,
-  },
-  {
-    name: "Customers",
-    path: "/customers",
-    icon: Users,
-  },
-  {
-    name: "Categories",
-    path: "/categories",
-    icon: Tags,
-  },
-  {
-    name: "Reports",
-    path: "/reports",
-    icon: BarChart3,
-  },
-];
 
-const Sidebar = () => {
+const Sidebar = ({ collapsed = false }) => {
+  const menuItems = [
+    {
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      name: "Products",
+      path: "/products",
+      icon: Package,
+    },
+    {
+      name: "Inventory",
+      path: "/inventory",
+      icon: Warehouse,
+    },
+    {
+      name: "Sales",
+      path: "/sales",
+      icon: ShoppingCart,
+    },
+    {
+      name: "Purchases",
+      path: "/purchases",
+      icon: ShoppingBag,
+    },
+    {
+      name: "Suppliers",
+      path: "/suppliers",
+      icon: Building2,
+    },
+    {
+      name: "Customers",
+      path: "/customers",
+      icon: Users,
+    },
+    {
+      name: "Categories",
+      path: "/categories",
+      icon: Tags,
+    },
+    {
+      name: "Reports",
+      path: "/reports",
+      icon: BarChart3,
+    },
+  ];
+
   return (
-    <aside className="hidden min-h-[calc(100vh-64px)] w-64 border-r border-slate-200 bg-white md:block">
-      <div className="p-4">
-        <nav className="space-y-1">
+    <aside
+      className={`
+        fixed
+        left-0
+        top-16
+        bottom-0
+        z-40
+        border-r
+        border-slate-800
+        bg-slate-950
+        text-white
+        transition-all
+        duration-300
+        ease-in-out
+        ${
+          collapsed
+            ? "w-20"
+            : "w-64"
+        }
+      `}
+    >
+
+      <nav
+        className={`
+          h-full
+          overflow-y-auto
+          py-5
+          ${
+            collapsed
+              ? "px-2"
+              : "px-3"
+          }
+        `}
+      >
+
+        {/* =================================================
+            MAIN NAVIGATION
+        ================================================= */}
+
+        <div className="space-y-1">
+
           {menuItems.map((item) => {
             const Icon = item.icon;
 
@@ -72,22 +113,109 @@ const Sidebar = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`
+                title={
+                  collapsed
+                    ? item.name
+                    : undefined
                 }
-              >
-                <Icon className="h-5 w-5" />
+                className={({ isActive }) => `
+                  group
+                  flex
+                  h-11
+                  items-center
+                  rounded-lg
+                  transition-all
+                  duration-200
 
-                <span>{item.name}</span>
+                  ${
+                    collapsed
+                      ? "justify-center"
+                      : "gap-3 px-2"
+                  }
+
+                  ${
+                    isActive
+                      ? `
+                        bg-white
+                        text-slate-950
+                        shadow-sm
+                      `
+                      : `
+                        text-slate-300
+                        hover:bg-slate-800
+                        hover:text-white
+                      `
+                  }
+                `}
+              >
+
+                <Icon
+                  className="h-5 w-5 shrink-0"
+                  strokeWidth={2}
+                />
+
+                {!collapsed && (
+                  <span className="text-sm font-medium">
+                    {item.name}
+                  </span>
+                )}
+
               </NavLink>
             );
           })}
-        </nav>
-      </div>
+
+        </div>
+
+
+        {/* =================================================
+            SIDEBAR FOOTER
+        ================================================= */}
+
+        <div className="mt-8 border-t border-slate-800 pt-5">
+
+          {!collapsed ? (
+
+            <div className="px-2">
+
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                Inventory Management
+              </p>
+
+              <p className="mt-1 text-xs text-slate-600">
+                Manage your business
+              </p>
+
+            </div>
+
+          ) : (
+
+            <div className="flex justify-center">
+
+              <div
+                title="Inventory Management"
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-lg
+                  bg-slate-900
+                  text-xs
+                  font-bold
+                  text-slate-400
+                "
+              >
+                IP
+              </div>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </nav>
     </aside>
   );
 };
