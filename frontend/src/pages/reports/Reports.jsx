@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import {
   BarChart3,
   RefreshCw,
@@ -104,8 +105,8 @@ const Reports = () => {
 
       setError(
         err?.response?.data?.message ||
-          err?.message ||
-          "Failed to load reports."
+        err?.message ||
+        "Failed to load reports."
       );
     } finally {
       setLoading(false);
@@ -349,11 +350,10 @@ const Reports = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-medium transition ${
-                  active
+                className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-medium transition ${active
                     ? "border-slate-900 bg-slate-50 text-slate-900"
                     : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                }`}
+                  }`}
               >
                 <Icon size={18} />
 
@@ -371,6 +371,7 @@ const Reports = () => {
       ================================================= */}
 
       {activeTab === "overview" && (
+
         <div className="space-y-6">
 
           {/* FINANCIAL CARDS */}
@@ -381,102 +382,114 @@ const Reports = () => {
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
 
-                <div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <IndianRupee size={20} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Revenue
                   </p>
 
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                  <p className="mt-1 break-words text-2xl font-bold leading-tight text-slate-800">
                     {formatCurrency(totalSales)}
                   </p>
-                </div>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <IndianRupee size={20} />
                 </div>
 
               </div>
 
             </div>
+
 
             {/* PURCHASES */}
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
 
-                <div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <Truck size={20} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Purchases
                   </p>
 
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                  <p className="mt-1 break-words text-2xl font-bold leading-tight text-slate-800">
                     {formatCurrency(totalPurchases)}
                   </p>
-                </div>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <Truck size={20} />
                 </div>
 
               </div>
 
             </div>
+
 
             {/* PROFIT */}
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
 
-                <div>
-                  <p className="text-sm text-slate-500">
-                    Estimated Profit
-                  </p>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
 
-                  <p
-                    className={`mt-1 text-2xl font-bold ${
-                      profit >= 0
-                        ? "text-slate-800"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {formatCurrency(profit)}
-                  </p>
-                </div>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
                   {profit >= 0 ? (
                     <TrendingUp size={20} />
                   ) : (
                     <TrendingDown size={20} />
                   )}
+
+                </div>
+
+                <div className="min-w-0 flex-1">
+
+                  <p className="text-sm text-slate-500">
+                    Estimated Profit
+                  </p>
+
+                  <p
+                    className={`mt-1 break-words text-2xl font-bold leading-tight ${profit >= 0
+                        ? "text-slate-800"
+                        : "text-red-600"
+                      }`}
+                  >
+                    {formatCurrency(profit)}
+                  </p>
+
                 </div>
 
               </div>
 
             </div>
 
+
             {/* STOCK VALUE */}
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
 
-                <div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <Boxes size={20} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Stock Value
                   </p>
 
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                  <p className="mt-1 break-words text-2xl font-bold leading-tight text-slate-800">
                     {formatCurrency(stockValue)}
                   </p>
-                </div>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <Boxes size={20} />
                 </div>
 
               </div>
@@ -485,11 +498,13 @@ const Reports = () => {
 
           </div>
 
+
           {/* BUSINESS COUNTS */}
 
           <div>
 
             <div className="mb-4 flex items-center gap-2">
+
               <FileText
                 size={20}
                 className="text-slate-700"
@@ -498,13 +513,18 @@ const Reports = () => {
               <h2 className="text-lg font-bold text-slate-800">
                 Business Overview
               </h2>
+
             </div>
+
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
                 <div className="flex items-center justify-between">
+
                   <div>
+
                     <p className="text-sm text-slate-500">
                       Products
                     </p>
@@ -512,18 +532,25 @@ const Reports = () => {
                     <p className="mt-1 text-2xl font-bold text-slate-800">
                       {productCount}
                     </p>
+
                   </div>
 
                   <Package
                     size={23}
                     className="text-slate-500"
                   />
+
                 </div>
+
               </div>
 
+
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
                 <div className="flex items-center justify-between">
+
                   <div>
+
                     <p className="text-sm text-slate-500">
                       Categories
                     </p>
@@ -531,18 +558,25 @@ const Reports = () => {
                     <p className="mt-1 text-2xl font-bold text-slate-800">
                       {categoryCount}
                     </p>
+
                   </div>
 
                   <Tags
                     size={23}
                     className="text-slate-500"
                   />
+
                 </div>
+
               </div>
 
+
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
                 <div className="flex items-center justify-between">
+
                   <div>
+
                     <p className="text-sm text-slate-500">
                       Suppliers
                     </p>
@@ -550,18 +584,25 @@ const Reports = () => {
                     <p className="mt-1 text-2xl font-bold text-slate-800">
                       {supplierCount}
                     </p>
+
                   </div>
 
                   <Truck
                     size={23}
                     className="text-slate-500"
                   />
+
                 </div>
+
               </div>
 
+
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
                 <div className="flex items-center justify-between">
+
                   <div>
+
                     <p className="text-sm text-slate-500">
                       Customers
                     </p>
@@ -569,24 +610,29 @@ const Reports = () => {
                     <p className="mt-1 text-2xl font-bold text-slate-800">
                       {customerCount}
                     </p>
+
                   </div>
 
                   <Users
                     size={23}
                     className="text-slate-500"
                   />
+
                 </div>
+
               </div>
 
             </div>
 
           </div>
 
+
           {/* STOCK STATUS */}
 
           <div>
 
             <div className="mb-4 flex items-center gap-2">
+
               <Package
                 size={20}
                 className="text-slate-700"
@@ -595,11 +641,14 @@ const Reports = () => {
               <h2 className="text-lg font-bold text-slate-800">
                 Inventory Status
               </h2>
+
             </div>
+
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
                 <p className="text-sm text-slate-500">
                   Total Stock
                 </p>
@@ -607,10 +656,14 @@ const Reports = () => {
                 <p className="mt-1 text-2xl font-bold text-slate-800">
                   {totalStock}
                 </p>
+
               </div>
 
+
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+
                 <div className="flex items-center gap-2">
+
                   <AlertTriangle
                     size={18}
                     className="text-amber-600"
@@ -619,15 +672,20 @@ const Reports = () => {
                   <p className="text-sm text-amber-700">
                     Low Stock
                   </p>
+
                 </div>
 
                 <p className="mt-1 text-2xl font-bold text-amber-800">
                   {lowStock}
                 </p>
+
               </div>
 
+
               <div className="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm">
+
                 <div className="flex items-center gap-2">
+
                   <AlertTriangle
                     size={18}
                     className="text-red-600"
@@ -636,11 +694,13 @@ const Reports = () => {
                   <p className="text-sm text-red-700">
                     Out of Stock
                   </p>
+
                 </div>
 
                 <p className="mt-1 text-2xl font-bold text-red-800">
                   {outOfStock}
                 </p>
+
               </div>
 
             </div>
@@ -650,16 +710,19 @@ const Reports = () => {
         </div>
       )}
 
+
       {/* =================================================
           SALES REPORT
       ================================================= */}
 
       {activeTab === "sales" && (
+
         <div className="space-y-5">
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Completed Sales
               </p>
@@ -667,9 +730,12 @@ const Reports = () => {
               <p className="mt-1 text-2xl font-bold text-slate-800">
                 {salesReport?.salesCount || 0}
               </p>
+
             </div>
 
+
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Total Sales
               </p>
@@ -679,13 +745,16 @@ const Reports = () => {
                   salesReport?.totalSales
                 )}
               </p>
+
             </div>
 
           </div>
 
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
             <div className="border-b border-slate-200 px-5 py-4">
+
               <h2 className="font-bold text-slate-800">
                 Sales Report
               </h2>
@@ -693,7 +762,9 @@ const Reports = () => {
               <p className="text-sm text-slate-500">
                 Completed sales transactions
               </p>
+
             </div>
+
 
             <div className="overflow-x-auto">
 
@@ -727,19 +798,26 @@ const Reports = () => {
 
                 </thead>
 
+
                 <tbody className="divide-y divide-slate-100">
 
                   {sales.length === 0 ? (
+
                     <tr>
+
                       <td
                         colSpan="5"
                         className="px-5 py-12 text-center text-sm text-slate-500"
                       >
                         No completed sales found.
                       </td>
+
                     </tr>
+
                   ) : (
+
                     sales.map((sale) => (
+
                       <tr
                         key={sale.id}
                         className="hover:bg-slate-50"
@@ -772,7 +850,9 @@ const Reports = () => {
                         </td>
 
                       </tr>
+
                     ))
+
                   )}
 
                 </tbody>
@@ -786,16 +866,19 @@ const Reports = () => {
         </div>
       )}
 
+
       {/* =================================================
           PURCHASE REPORT
       ================================================= */}
 
       {activeTab === "purchases" && (
+
         <div className="space-y-5">
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Received Purchases
               </p>
@@ -803,9 +886,12 @@ const Reports = () => {
               <p className="mt-1 text-2xl font-bold text-slate-800">
                 {purchaseReport?.purchaseCount || 0}
               </p>
+
             </div>
 
+
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Total Purchases
               </p>
@@ -815,13 +901,16 @@ const Reports = () => {
                   purchaseReport?.totalPurchases
                 )}
               </p>
+
             </div>
 
           </div>
 
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
             <div className="border-b border-slate-200 px-5 py-4">
+
               <h2 className="font-bold text-slate-800">
                 Purchase Report
               </h2>
@@ -829,7 +918,9 @@ const Reports = () => {
               <p className="text-sm text-slate-500">
                 Received purchase orders
               </p>
+
             </div>
+
 
             <div className="overflow-x-auto">
 
@@ -850,7 +941,6 @@ const Reports = () => {
                     <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                       Items
                     </th>
-
                     <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                       Date
                     </th>
@@ -863,19 +953,26 @@ const Reports = () => {
 
                 </thead>
 
+
                 <tbody className="divide-y divide-slate-100">
 
                   {purchases.length === 0 ? (
+
                     <tr>
+
                       <td
                         colSpan="5"
                         className="px-5 py-12 text-center text-sm text-slate-500"
                       >
                         No received purchases found.
                       </td>
+
                     </tr>
+
                   ) : (
+
                     purchases.map((purchase) => (
+
                       <tr
                         key={purchase.id}
                         className="hover:bg-slate-50"
@@ -907,7 +1004,9 @@ const Reports = () => {
                         </td>
 
                       </tr>
+
                     ))
+
                   )}
 
                 </tbody>
@@ -921,16 +1020,19 @@ const Reports = () => {
         </div>
       )}
 
+
       {/* =================================================
           INVENTORY REPORT
       ================================================= */}
 
       {activeTab === "inventory" && (
+
         <div className="space-y-5">
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Products
               </p>
@@ -938,9 +1040,12 @@ const Reports = () => {
               <p className="mt-1 text-2xl font-bold text-slate-800">
                 {inventoryReport?.totalProducts || 0}
               </p>
+
             </div>
 
+
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Total Stock
               </p>
@@ -948,9 +1053,12 @@ const Reports = () => {
               <p className="mt-1 text-2xl font-bold text-slate-800">
                 {totalStock}
               </p>
+
             </div>
 
+
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
               <p className="text-sm text-slate-500">
                 Stock Value
               </p>
@@ -958,9 +1066,11 @@ const Reports = () => {
               <p className="mt-1 text-2xl font-bold text-slate-800">
                 {formatCurrency(stockValue)}
               </p>
+
             </div>
 
           </div>
+
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
@@ -975,6 +1085,7 @@ const Reports = () => {
               </p>
 
             </div>
+
 
             <div className="overflow-x-auto">
 
@@ -1012,20 +1123,27 @@ const Reports = () => {
 
                 </thead>
 
+
                 <tbody className="divide-y divide-slate-100">
 
                   {inventoryProducts.length === 0 ? (
+
                     <tr>
+
                       <td
                         colSpan="6"
                         className="px-5 py-12 text-center text-sm text-slate-500"
                       >
                         No products found.
                       </td>
+
                     </tr>
+
                   ) : (
+
                     inventoryProducts.map(
                       (product) => {
+
                         const quantity = Number(
                           product.quantity || 0
                         );
@@ -1044,11 +1162,12 @@ const Reports = () => {
                         const isLow =
                           quantity > 0 &&
                           quantity <=
-                            Number(
-                              product.minStock || 0
-                            );
+                          Number(
+                            product.minStock || 0
+                          );
 
                         return (
+
                           <tr
                             key={product.id}
                             className="hover:bg-slate-50"
@@ -1070,13 +1189,12 @@ const Reports = () => {
                             <td className="px-5 py-4 text-right">
 
                               <span
-                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                  isOut
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isOut
                                     ? "bg-red-100 text-red-700"
                                     : isLow
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-green-100 text-green-700"
+                                  }`}
                               >
                                 {quantity}
                               </span>
@@ -1094,9 +1212,11 @@ const Reports = () => {
                             </td>
 
                           </tr>
+
                         );
                       }
                     )
+
                   )}
 
                 </tbody>
@@ -1110,14 +1230,17 @@ const Reports = () => {
         </div>
       )}
 
+
       {/* =================================================
           PROFIT & LOSS
       ================================================= */}
 
       {activeTab === "profit" && (
+
         <div className="space-y-6">
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
 
             {/* REVENUE */}
 
@@ -1125,25 +1248,28 @@ const Reports = () => {
 
               <div className="flex items-center gap-3">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
                   <TrendingUp size={21} />
                 </div>
 
-                <div>
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Revenue
                   </p>
 
-                  <p className="text-xl font-bold text-slate-800">
+                  <p className="break-words text-xl font-bold leading-tight text-slate-800">
                     {formatCurrency(
                       profitLossReport?.revenue
                     )}
                   </p>
+
                 </div>
 
               </div>
 
             </div>
+
 
             {/* EXPENSES */}
 
@@ -1151,25 +1277,28 @@ const Reports = () => {
 
               <div className="flex items-center gap-3">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
                   <TrendingDown size={21} />
                 </div>
 
-                <div>
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Expenses
                   </p>
 
-                  <p className="text-xl font-bold text-slate-800">
+                  <p className="break-words text-xl font-bold leading-tight text-slate-800">
                     {formatCurrency(
                       profitLossReport?.expenses
                     )}
                   </p>
+
                 </div>
 
               </div>
 
             </div>
+
 
             {/* PROFIT */}
 
@@ -1177,24 +1306,25 @@ const Reports = () => {
 
               <div className="flex items-center gap-3">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
                   <IndianRupee size={21} />
                 </div>
 
-                <div>
+                <div className="min-w-0 flex-1">
+
                   <p className="text-sm text-slate-500">
                     Net Profit
                   </p>
 
                   <p
-                    className={`text-xl font-bold ${
-                      profit >= 0
+                    className={`break-words text-xl font-bold leading-tight ${profit >= 0
                         ? "text-slate-800"
                         : "text-red-600"
-                    }`}
+                      }`}
                   >
                     {formatCurrency(profit)}
                   </p>
+
                 </div>
 
               </div>
@@ -1202,6 +1332,7 @@ const Reports = () => {
             </div>
 
           </div>
+
 
           {/* PROFIT LOSS BREAKDOWN */}
 
@@ -1219,6 +1350,7 @@ const Reports = () => {
 
             </div>
 
+
             <div className="space-y-4">
 
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -1235,6 +1367,7 @@ const Reports = () => {
 
               </div>
 
+
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
 
                 <span className="text-sm text-slate-600">
@@ -1250,6 +1383,7 @@ const Reports = () => {
 
               </div>
 
+
               <div className="flex items-center justify-between pt-1">
 
                 <span className="font-bold text-slate-800">
@@ -1257,11 +1391,10 @@ const Reports = () => {
                 </span>
 
                 <span
-                  className={`text-xl font-bold ${
-                    profit >= 0
+                  className={`text-xl font-bold ${profit >= 0
                       ? "text-slate-900"
                       : "text-red-600"
-                  }`}
+                    }`}
                 >
                   {formatCurrency(profit)}
                 </span>
@@ -1277,6 +1410,7 @@ const Reports = () => {
 
     </div>
   );
+
 };
 
 export default Reports;

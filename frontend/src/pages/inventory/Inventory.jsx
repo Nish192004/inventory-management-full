@@ -205,54 +205,52 @@ const Inventory = () => {
   // --------------------------------------------------
 
   return (
-    <div className="w-full min-w-0 space-y-4 sm:space-y-6">
+    <div className="w-full space-y-6">
+
       {/* PAGE HEADER */}
-      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
             Inventory
           </h1>
 
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <p className="mt-1 text-sm text-slate-500">
             Monitor and manage stock levels.
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+        <div className="flex gap-2">
+
           <button
             type="button"
             onClick={loadInventory}
             disabled={loading}
             className="
               flex
-              min-w-0
               items-center
-              justify-center
               gap-2
               rounded-lg
               border
               border-slate-200
               bg-white
-              px-3
-              py-2.5
-              text-xs
+              px-4
+              py-2
+              text-sm
               font-medium
               text-slate-700
               transition
               hover:bg-slate-50
               disabled:cursor-not-allowed
               disabled:opacity-60
-              sm:px-4
-              sm:text-sm
             "
           >
             <RefreshCw
-              className={`h-4 w-4 shrink-0 ${
+              className={`h-4 w-4 ${
                 loading ? "animate-spin" : ""
               }`}
             />
 
-            <span className="truncate">Refresh</span>
+            Refresh
           </button>
 
           <button
@@ -260,27 +258,24 @@ const Inventory = () => {
             onClick={openModal}
             className="
               flex
-              min-w-0
               items-center
-              justify-center
               gap-2
               rounded-lg
               bg-slate-950
-              px-3
-              py-2.5
-              text-xs
+              px-4
+              py-2
+              text-sm
               font-semibold
               text-white
               transition
               hover:bg-slate-800
-              sm:px-4
-              sm:text-sm
             "
           >
-            <Plus className="h-4 w-4 shrink-0" />
+            <Plus className="h-4 w-4" />
 
-            <span className="truncate">Adjust Stock</span>
+            Adjust Stock
           </button>
+
         </div>
       </div>
 
@@ -292,12 +287,9 @@ const Inventory = () => {
             border
             border-red-200
             bg-red-50
-            p-3
-            text-xs
-            leading-5
+            p-4
+            text-sm
             text-red-700
-            sm:p-4
-            sm:text-sm
           "
         >
           {error}
@@ -305,7 +297,8 @@ const Inventory = () => {
       )}
 
       {/* SUMMARY */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
+
         <SummaryCard
           title="Total Stock"
           value={totalStock}
@@ -331,12 +324,12 @@ const Inventory = () => {
             <XCircle className="h-5 w-5 text-red-600" />
           }
         />
+
       </div>
 
       {/* CURRENT INVENTORY */}
       <div
         className="
-          min-w-0
           overflow-hidden
           rounded-2xl
           border
@@ -345,57 +338,63 @@ const Inventory = () => {
           shadow-sm
         "
       >
-        <div className="border-b border-slate-200 p-4 sm:p-5">
+
+        <div className="border-b border-slate-200 p-5">
           <h2 className="font-bold text-slate-900">
             Current Inventory
           </h2>
 
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <p className="mt-1 text-sm text-slate-500">
             Current stock of all products.
           </p>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center px-4 py-12 text-sm text-slate-500 sm:py-16">
+          <div className="flex items-center justify-center py-16 text-slate-500">
             <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
             Loading inventory...
           </div>
         ) : inventory.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-slate-500 sm:py-16">
+          <div className="py-16 text-center text-sm text-slate-500">
             No inventory records found.
           </div>
         ) : (
-          <div className="w-full overflow-x-auto">
+          <div className="overflow-x-auto">
+
             <table className="w-full min-w-[850px] text-left text-sm">
+
               <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+
+                  <th className="px-5 py-4">
                     Product
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     SKU
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Stock
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Minimum
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Status
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Action
                   </th>
+
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
+
                 {inventory.map((product) => {
                   const quantity = Number(
                     product.quantity || 0
@@ -415,39 +414,35 @@ const Inventory = () => {
                       key={product.id}
                       className="transition hover:bg-slate-50"
                     >
-                      <td className="max-w-[260px] px-4 py-3 sm:px-5 sm:py-4">
-                        <div className="truncate font-semibold text-slate-900">
-                          {product.name}
-                        </div>
+
+                      <td className="px-5 py-4 font-semibold text-slate-900">
+                        {product.name}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600 sm:px-5 sm:py-4">
+                      <td className="px-5 py-4 text-slate-600">
                         {product.sku || "-"}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-3 font-bold text-slate-900 sm:px-5 sm:py-4">
+                      <td className="px-5 py-4 font-bold text-slate-900">
                         {quantity}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600 sm:px-5 sm:py-4">
+                      <td className="px-5 py-4 text-slate-600">
                         {minimum}
                       </td>
 
-                      <td className="px-4 py-3 sm:px-5 sm:py-4">
+                      <td className="px-5 py-4">
+
                         {out ? (
                           <span
                             className="
-                              inline-flex
-                              whitespace-nowrap
                               rounded-full
                               bg-red-100
-                              px-2.5
+                              px-3
                               py-1
-                              text-[10px]
+                              text-xs
                               font-semibold
                               text-red-700
-                              sm:px-3
-                              sm:text-xs
                             "
                           >
                             Out of Stock
@@ -455,17 +450,13 @@ const Inventory = () => {
                         ) : low ? (
                           <span
                             className="
-                              inline-flex
-                              whitespace-nowrap
                               rounded-full
                               bg-amber-100
-                              px-2.5
+                              px-3
                               py-1
-                              text-[10px]
+                              text-xs
                               font-semibold
                               text-amber-700
-                              sm:px-3
-                              sm:text-xs
                             "
                           >
                             Low Stock
@@ -473,32 +464,29 @@ const Inventory = () => {
                         ) : (
                           <span
                             className="
-                              inline-flex
-                              whitespace-nowrap
                               rounded-full
                               bg-emerald-100
-                              px-2.5
+                              px-3
                               py-1
-                              text-[10px]
+                              text-xs
                               font-semibold
                               text-emerald-700
-                              sm:px-3
-                              sm:text-xs
                             "
                           >
                             Healthy
                           </span>
                         )}
+
                       </td>
 
-                      <td className="px-4 py-3 sm:px-5 sm:py-4">
+                      <td className="px-5 py-4">
+
                         <button
                           type="button"
                           onClick={() =>
                             openProductAdjustment(product)
                           }
                           className="
-                            whitespace-nowrap
                             rounded-lg
                             bg-slate-100
                             px-3
@@ -512,20 +500,25 @@ const Inventory = () => {
                         >
                           Adjust
                         </button>
+
                       </td>
+
                     </tr>
                   );
                 })}
+
               </tbody>
+
             </table>
+
           </div>
         )}
+
       </div>
 
       {/* STOCK MOVEMENTS */}
       <div
         className="
-          min-w-0
           overflow-hidden
           rounded-2xl
           border
@@ -534,188 +527,198 @@ const Inventory = () => {
           shadow-sm
         "
       >
+
         <div
           className="
             flex
-            items-start
+            items-center
             gap-3
             border-b
             border-slate-200
-            p-4
-            sm:items-center
-            sm:p-5
+            p-5
           "
         >
-          <History className="mt-0.5 h-5 w-5 shrink-0 text-slate-500 sm:mt-0" />
 
-          <div className="min-w-0">
+          <History className="h-5 w-5 text-slate-500" />
+
+          <div>
             <h2 className="font-bold text-slate-900">
               Stock Movement History
             </h2>
 
-            <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+            <p className="text-sm text-slate-500">
               Recent inventory movements.
             </p>
           </div>
+
         </div>
 
         {movements.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-500 sm:py-12">
+          <div className="py-12 text-center text-sm text-slate-500">
             No stock movements found.
           </div>
         ) : (
-          <div className="w-full overflow-x-auto">
+          <div className="overflow-x-auto">
+
             <table className="w-full min-w-[800px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50">
+
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+
+                  <th className="px-5 py-4">
                     Product
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Type
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Quantity
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Before
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     After
                   </th>
 
-                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-600 sm:px-5 sm:py-4 sm:text-sm">
+                  <th className="px-5 py-4">
                     Date
                   </th>
+
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
+
                 {movements.slice(0, 20).map((movement) => (
                   <tr
                     key={movement.id}
                     className="transition hover:bg-slate-50"
                   >
-                    <td className="max-w-[260px] px-4 py-3 sm:px-5 sm:py-4">
-                      <div className="truncate font-medium text-slate-900">
-                        {movement.product?.name ||
-                          movement.productName ||
-                          "-"}
-                      </div>
+
+                    <td className="px-5 py-4 font-medium text-slate-900">
+                      {movement.product?.name ||
+                        movement.productName ||
+                        "-"}
                     </td>
 
-                    <td className="px-4 py-3 sm:px-5 sm:py-4">
+                    <td className="px-5 py-4">
+
                       <span
-                        className={`
-                          inline-flex
-                          rounded-full
-                          px-2.5
-                          py-1
-                          text-[10px]
-                          font-semibold
-                          sm:px-3
-                          sm:text-xs
-                          ${
-                            movement.type === "IN"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-700"
-                          }
-                        `}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          movement.type === "IN"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
                         {movement.type}
                       </span>
+
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900 sm:px-5 sm:py-4">
+                    <td className="px-5 py-4 font-semibold text-slate-900">
                       {movement.quantity}
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600 sm:px-5 sm:py-4">
+                    <td className="px-5 py-4 text-slate-600">
                       {movement.before ?? "-"}
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600 sm:px-5 sm:py-4">
+                    <td className="px-5 py-4 text-slate-600">
                       {movement.after ?? "-"}
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-500 sm:px-5 sm:py-4">
+                    <td className="px-5 py-4 text-slate-500">
                       {movement.createdAt
                         ? new Date(
                             movement.createdAt
                           ).toLocaleDateString("en-IN")
                         : "-"}
                     </td>
+
                   </tr>
                 ))}
+
               </tbody>
+
             </table>
+
           </div>
         )}
+
       </div>
 
-      {/* ADJUST STOCK MODAL */}
+      {/* ==================================================
+          ADJUST STOCK MODAL
+          SAME SIZE / STRUCTURE AS PRODUCTS MODAL
+         ================================================== */}
+
       {showModal && (
         <div
           className="
             fixed
-            inset-0
+            bottom-0
+            right-0
+            top-16
             z-[200]
             flex
             items-center
             justify-center
             bg-slate-950/50
-            p-2
+            p-4
+            sm:p-6
             backdrop-blur-[2px]
-            sm:p-4
-            lg:left-[var(--sidebar-width,0px)]
+            transition-[left]
+            duration-300
+            ease-in-out
           "
+          style={{
+            left: "var(--sidebar-width, 0px)",
+          }}
         >
+
           {/* MODAL */}
           <div
             className="
               flex
-              max-h-[calc(100vh-1rem)]
+              max-h-[calc(100vh-112px)]
               w-full
               max-w-4xl
               flex-col
               overflow-hidden
-              rounded-xl
+              rounded-2xl
               bg-white
               shadow-2xl
               ring-1
               ring-black/5
-              sm:max-h-[calc(100vh-2rem)]
-              sm:rounded-2xl
             "
           >
+
             {/* HEADER */}
             <div
               className="
                 flex
                 shrink-0
-                items-start
+                items-center
                 justify-between
-                gap-4
                 border-b
                 border-slate-200
                 bg-white
-                px-4
-                py-3
-                sm:items-center
-                sm:px-6
-                sm:py-4
+                px-6
+                py-4
               "
             >
-              <div className="min-w-0">
-                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
                   Adjust Stock
                 </h2>
 
-                <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <p className="mt-1 text-sm text-slate-500">
                   Update product stock quantity
                 </p>
               </div>
@@ -725,13 +728,8 @@ const Inventory = () => {
                 onClick={closeModal}
                 disabled={saving}
                 className="
-                  flex
-                  h-9
-                  w-9
-                  shrink-0
-                  items-center
-                  justify-center
                   rounded-lg
+                  p-2
                   text-slate-500
                   transition
                   hover:bg-slate-100
@@ -739,10 +737,10 @@ const Inventory = () => {
                   disabled:cursor-not-allowed
                   disabled:opacity-50
                 "
-                aria-label="Close modal"
               >
                 <X className="h-5 w-5" />
               </button>
+
             </div>
 
             {/* FORM */}
@@ -750,7 +748,9 @@ const Inventory = () => {
               onSubmit={handleAdjust}
               className="min-h-0 flex-1 overflow-y-auto"
             >
-              <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
+
+              <div className="space-y-5 px-6 py-6">
+
                 {/* PRODUCT */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -783,6 +783,7 @@ const Inventory = () => {
                       focus:ring-slate-900/10
                     "
                   >
+
                     <option value="">
                       Select product
                     </option>
@@ -796,6 +797,7 @@ const Inventory = () => {
                         {product.quantity}
                       </option>
                     ))}
+
                   </select>
                 </div>
 
@@ -830,6 +832,7 @@ const Inventory = () => {
                       focus:ring-slate-900/10
                     "
                   >
+
                     <option value="IN">
                       Stock In
                     </option>
@@ -837,6 +840,7 @@ const Inventory = () => {
                     <option value="OUT">
                       Stock Out
                     </option>
+
                   </select>
                 </div>
 
@@ -913,11 +917,6 @@ const Inventory = () => {
                   />
                 </div>
 
-                {error && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700 sm:text-sm">
-                    {error}
-                  </div>
-                )}
               </div>
 
               {/* FOOTER */}
@@ -927,27 +926,22 @@ const Inventory = () => {
                   bottom-0
                   flex
                   shrink-0
-                  flex-col-reverse
-                  gap-2
+                  items-center
+                  justify-end
+                  gap-3
                   border-t
                   border-slate-200
                   bg-white
-                  px-4
-                  py-3
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-end
-                  sm:gap-3
-                  sm:px-6
-                  sm:py-4
+                  px-6
+                  py-4
                 "
               >
+
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
                   className="
-                    w-full
                     rounded-lg
                     border
                     border-slate-300
@@ -961,7 +955,6 @@ const Inventory = () => {
                     hover:bg-slate-100
                     disabled:cursor-not-allowed
                     disabled:opacity-50
-                    sm:w-auto
                   "
                 >
                   Cancel
@@ -971,7 +964,6 @@ const Inventory = () => {
                   type="submit"
                   disabled={saving}
                   className="
-                    w-full
                     rounded-lg
                     bg-slate-950
                     px-5
@@ -983,18 +975,22 @@ const Inventory = () => {
                     hover:bg-slate-800
                     disabled:cursor-not-allowed
                     disabled:opacity-50
-                    sm:w-auto
                   "
                 >
                   {saving
                     ? "Saving..."
                     : "Adjust Stock"}
                 </button>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
       )}
+
     </div>
   );
 };
@@ -1012,7 +1008,7 @@ const SummaryCard = ({
 }) => {
   return (
     <div
-      className={`min-w-0 rounded-2xl border p-4 shadow-sm sm:p-5 ${
+      className={`rounded-2xl border p-5 shadow-sm ${
         warning
           ? "border-amber-200 bg-amber-50"
           : danger
@@ -1020,17 +1016,21 @@ const SummaryCard = ({
           : "border-slate-200 bg-white"
       }`}
     >
-      <p className="truncate text-sm text-slate-500">
+
+      <p className="text-sm text-slate-500">
         {title}
       </p>
 
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <p className="truncate text-xl font-bold text-slate-900 sm:text-2xl">
+      <div className="mt-2 flex items-center justify-between">
+
+        <p className="text-2xl font-bold text-slate-900">
           {Number(value || 0).toLocaleString("en-IN")}
         </p>
 
-        <div className="shrink-0">{icon}</div>
+        {icon}
+
       </div>
+
     </div>
   );
 };
