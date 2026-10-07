@@ -19,6 +19,9 @@ import Customers from "./pages/customers/Customers";
 import Categories from "./pages/categories/Categories";
 import Reports from "./pages/reports/Reports";
 
+/* Profile */
+import Profile from "./pages/profile/Profile";
+
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -27,28 +30,50 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Navbar from "./components/layout/Navbar";
 import Sidebar from "./components/layout/Sidebar";
 
-
 // ============================================================
 // APP LAYOUT
 // ============================================================
 
 const AppLayout = ({ children }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] =
-    useState(false);
+  // Desktop sidebar state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Mobile sidebar state
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   /*
-   * Sidebar widths:
+   * Desktop sidebar widths:
    *
    * Open      = 16rem = 256px
    * Collapsed = 5rem  = 80px
    *
-   * This CSS variable is also used by page modals.
+   * On mobile the sidebar becomes a drawer, so
+   * these widths do not affect the main content.
    */
 
   const sidebarWidth = sidebarCollapsed
     ? "5rem"
     : "16rem";
 
+  // ============================================================
+  // MENU HANDLER
+  // ============================================================
+
+  const handleMenuClick = () => {
+    /*
+     * Mobile:
+     * Open/close the sidebar drawer.
+     *
+     * Desktop:
+     * Collapse/expand the sidebar.
+     */
+
+    if (window.innerWidth < 1024) {
+      setMobileSidebarOpen((previous) => !previous);
+    } else {
+      setSidebarCollapsed((previous) => !previous);
+    }
+  };
 
   return (
     <div
@@ -57,19 +82,11 @@ const AppLayout = ({ children }) => {
         "--sidebar-width": sidebarWidth,
       }}
     >
-
       {/* ======================================================
           NAVBAR
       ====================================================== */}
 
-      <Navbar
-        onMenuClick={() =>
-          setSidebarCollapsed(
-            (previous) => !previous
-          )
-        }
-      />
-
+      <Navbar onMenuClick={handleMenuClick} />
 
       {/* ======================================================
           SIDEBAR
@@ -77,8 +94,9 @@ const AppLayout = ({ children }) => {
 
       <Sidebar
         collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
-
 
       {/* ======================================================
           MAIN CONTENT
@@ -95,33 +113,33 @@ const AppLayout = ({ children }) => {
           bg-slate-50
           transition-all
           duration-300
-          ${sidebarCollapsed
-            ? "left-20"
-            : "left-64"
-          }
+          w-full
+          lg:w-auto
+          ${sidebarCollapsed ? "lg:left-20" : "lg:left-64"}
         `}
       >
-
         <div
           className="
             mx-auto
             w-full
             max-w-[1600px]
-            px-4
-            py-6
+            min-w-0
+            px-3
+            py-4
+            sm:px-4
+            sm:py-5
             md:px-6
+            md:py-6
             lg:px-8
+            lg:py-6
           "
         >
           {children}
         </div>
-
       </main>
-
     </div>
   );
 };
-
 
 // ============================================================
 // PROTECTED LAYOUT
@@ -130,13 +148,10 @@ const AppLayout = ({ children }) => {
 const ProtectedLayout = ({ children }) => {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        {children}
-      </AppLayout>
+      <AppLayout>{children}</AppLayout>
     </ProtectedRoute>
   );
 };
-
 
 // ============================================================
 // APP
@@ -145,9 +160,7 @@ const ProtectedLayout = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-
       <Routes>
-
         {/* ====================================================
             AUTH
         ==================================================== */}
@@ -167,7 +180,6 @@ const App = () => {
           element={<ForgotPassword />}
         />
 
-
         {/* ====================================================
             DASHBOARD
         ==================================================== */}
@@ -181,7 +193,6 @@ const App = () => {
           }
         />
 
-
         {/* ====================================================
             DASHBOARD DETAILS
         ==================================================== */}
@@ -190,9 +201,7 @@ const App = () => {
           path="/dashboard/products"
           element={
             <ProtectedLayout>
-              <DashboardDetails
-                type="products"
-              />
+              <DashboardDetails type="products" />
             </ProtectedLayout>
           }
         />
@@ -201,9 +210,7 @@ const App = () => {
           path="/dashboard/stock"
           element={
             <ProtectedLayout>
-              <DashboardDetails
-                type="stock"
-              />
+              <DashboardDetails type="stock" />
             </ProtectedLayout>
           }
         />
@@ -212,9 +219,7 @@ const App = () => {
           path="/dashboard/sales"
           element={
             <ProtectedLayout>
-              <DashboardDetails
-                type="sales"
-              />
+              <DashboardDetails type="sales" />
             </ProtectedLayout>
           }
         />
@@ -223,13 +228,10 @@ const App = () => {
           path="/dashboard/revenue"
           element={
             <ProtectedLayout>
-              <DashboardDetails
-                type="revenue"
-              />
+              <DashboardDetails type="revenue" />
             </ProtectedLayout>
           }
         />
-
 
         {/* ====================================================
             PRODUCTS
@@ -244,7 +246,6 @@ const App = () => {
           }
         />
 
-
         {/* ====================================================
             INVENTORY
         ==================================================== */}
@@ -257,7 +258,6 @@ const App = () => {
             </ProtectedLayout>
           }
         />
-
 
         {/* ====================================================
             SALES
@@ -272,7 +272,6 @@ const App = () => {
           }
         />
 
-
         {/* ====================================================
             PURCHASES
         ==================================================== */}
@@ -285,7 +284,6 @@ const App = () => {
             </ProtectedLayout>
           }
         />
-
 
         {/* ====================================================
             SUPPLIERS
@@ -300,7 +298,6 @@ const App = () => {
           }
         />
 
-
         {/* ====================================================
             CUSTOMERS
         ==================================================== */}
@@ -313,7 +310,6 @@ const App = () => {
             </ProtectedLayout>
           }
         />
-
 
         {/* ====================================================
             CATEGORIES
@@ -328,7 +324,6 @@ const App = () => {
           }
         />
 
-
         {/* ====================================================
             REPORTS
         ==================================================== */}
@@ -342,6 +337,18 @@ const App = () => {
           }
         />
 
+        {/* ====================================================
+            PROFILE
+        ==================================================== */}
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedLayout>
+              <Profile />
+            </ProtectedLayout>
+          }
+        />
 
         {/* ====================================================
             DEFAULT
@@ -366,12 +373,9 @@ const App = () => {
             />
           }
         />
-
       </Routes>
-
     </BrowserRouter>
   );
 };
-
 
 export default App;

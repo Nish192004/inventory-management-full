@@ -1,259 +1,283 @@
 import prisma from "../config/prisma.js";
 
-const parseId = (value, name) => {
-  const id = Number(value);
-
-  if (
-    !Number.isInteger(id) ||
-    id <= 0
-  ) {
-    throw new Error(
-      `Invalid ${name}.`
-    );
-  }
-
-  return id;
-};
-
-const allowedTypes = [
-  "PURCHASE",
-  "SALE",
-  "RETURN",
-  "ADJUSTMENT",
-  "DAMAGE",
-];
-
-export const getInventory = async (
-  req,
-  res,
-  next
-) => {
+/**
+ * GET /api/inventory
+ */
+export const getInventory = async (req, res) => {
   try {
-    const products =
-      await prisma.product.findMany({
-        include: {
-          category: true,
-        },
-        orderBy: {
-          name: "asc",
-        },
-      });
+    const products = await prisma.product.findMany({
+      include: {
+        category: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: products,
-      products,
     });
   } catch (error) {
-    next(error);
+    console.error("Get inventory error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory",
+      error: error.message,
+    });
   }
 };
 
-export const getLowStock = async (
-  req,
-  res,
-  next
-) => {
+/**
+ * GET /api/inventory/low-stock
+ */
+export const getLowStock = async (req, res) => {
   try {
-    const products =
-      await prisma.product.findMany({
-        where: {
-          quantity: {
-            gt: 0,
-          },
-        },
-        include: {
-          category: true,
-        },
-        orderBy: {
-          quantity: "asc",
-        },
-      });
+    const products = await prisma.product.findMany({
+      include: {
+        category: true,
+      },
+      orderBy: {
+        quantity: "asc",
+      },
+    });
 
-    const lowStock =
-      products.filter(
-        (product) =>
-          product.quantity <=
-          product.minStock
-      );
+    const lowStockProducts = products.filter(
+      (product) => product.quantity <= product.minStock
+    );
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      data: lowStock,
-      products: lowStock,
+      data: lowStockProducts,
     });
   } catch (error) {
-    next(error);
+    console.error("Get low stock error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch low stock products",
+      error: error.message,
+    });
   }
 };
 
-export const getStockMovements =
-  async (req, res, next) => {
-    try {
-      const productId =
-        req.query.productId
-          ? parseId(
-              req.query.productId,
-              "product ID"
-            )
-          : undefined;
-
-      const movements =
-        await prisma.stockMovement.findMany({
-          where: productId
-            ? {
-                productId,
-              }
-            : {},
-          include: {
-            product: true,
+/**
+ * GET /api/inventory/movements
+ */
+export const getStockMovements = async (req, res) => {
+  try {
+    const movements = await prisma.stockMovement.findMany({
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
           },
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-      res.json({
-        success: true,
-        data: movements,
-        movements,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
+    return res.status(200).json({
+      success: true,
+      data: movements,
+    });
+  } catch (error) {
+    console.error("Get stock movements error:", error);
 
-export const adjustStock = async (
-  req,
-  res,
-  next
-) => {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch stock movements",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * POST /api/inventory/adjust
+ *
+ * Frontend sends:
+ *
+ * {
+ *   productId,
+ *   quantity,
+ *   type: "IN" | "OUT",
+ *   note
+ * }
+ *
+ * IN  = increase stock
+ * OUT = decrease stock
+ */
+export const adjustStock = async (req, res) => {
   try {
     const {
       productId,
       quantity,
-      type = "ADJUSTMENT",
+      type,
       note,
     } = req.body;
 
-    const parsedProductId =
-      parseId(
-        productId,
-        "product ID"
-      );
+    console.log("Stock adjustment request:", {
+      productId,
+      quantity,
+      type,
+      note,
+    });
 
-    const parsedQuantity =
-      Number(quantity);
+    // -----------------------------
+    // Validate product ID
+    // -----------------------------
+
+    const parsedProductId = Number(productId);
 
     if (
-      !Number.isInteger(
-        parsedQuantity
-      ) ||
+      !Number.isInteger(parsedProductId) ||
+      parsedProductId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    // -----------------------------
+    // Validate quantity
+    // -----------------------------
+
+    const parsedQuantity = Number(quantity);
+
+    if (
+      !Number.isInteger(parsedQuantity) ||
       parsedQuantity <= 0
     ) {
-      throw new Error(
-        "Quantity must be a positive integer."
-      );
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be a positive integer",
+      });
     }
 
-    if (!allowedTypes.includes(type)) {
-      throw new Error(
-        `Invalid stock movement type. Allowed values: ${allowedTypes.join(
-          ", "
-        )}`
-      );
+    // -----------------------------
+    // Validate adjustment type
+    // -----------------------------
+
+    if (type !== "IN" && type !== "OUT") {
+      return res.status(400).json({
+        success: false,
+        message: "Adjustment type must be IN or OUT",
+      });
     }
 
-    if (type === "SALE") {
-      throw new Error(
-        "Sales should be created from the Sales module."
-      );
+    // -----------------------------
+    // Find product
+    // -----------------------------
+
+    const product = await prisma.product.findUnique({
+      where: {
+        id: parsedProductId,
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
     }
 
-    const result =
-      await prisma.$transaction(
-        async (tx) => {
-          const product =
-            await tx.product.findUnique({
-              where: {
-                id: parsedProductId,
-              },
-            });
+    // -----------------------------
+    // Calculate new stock
+    // -----------------------------
 
-          if (!product) {
-            throw new Error(
-              "Product not found."
-            );
-          }
+    const before = product.quantity;
 
-          let after;
+    let after;
 
-          if (
-            type === "PURCHASE" ||
-            type === "RETURN"
-          ) {
-            after =
-              product.quantity +
-              parsedQuantity;
-          } else if (
-            type === "DAMAGE"
-          ) {
-            after =
-              product.quantity -
-              parsedQuantity;
-          } else {
-            after =
-              product.quantity +
-              parsedQuantity;
-          }
+    if (type === "IN") {
+      after = before + parsedQuantity;
+    } else {
+      after = before - parsedQuantity;
+    }
 
-          if (after < 0) {
-            throw new Error(
-              `Insufficient stock. Available: ${product.quantity}.`
-            );
-          }
+    // -----------------------------
+    // Prevent negative stock
+    // -----------------------------
 
-          const updatedProduct =
-            await tx.product.update({
-              where: {
-                id: parsedProductId,
-              },
-              data: {
-                quantity: after,
-              },
-            });
+    if (after < 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient stock. Available stock: ${before}`,
+      });
+    }
 
-          const movement =
-            await tx.stockMovement.create({
-              data: {
-                productId:
-                  parsedProductId,
-                type,
-                quantity:
-                  parsedQuantity,
-                before:
-                  product.quantity,
-                after,
-                note:
-                  note ||
-                  `Stock ${type.toLowerCase()}`,
-              },
-            });
+    // -----------------------------
+    // Database transaction
+    // -----------------------------
 
-          return {
-            product: updatedProduct,
-            movement,
-          };
-        }
-      );
+    const result = await prisma.$transaction(async (tx) => {
+      // Update product quantity
+      const updatedProduct = await tx.product.update({
+        where: {
+          id: parsedProductId,
+        },
+        data: {
+          quantity: after,
+        },
+        include: {
+          category: true,
+        },
+      });
 
-    res.json({
+      // Create stock movement
+      const movement = await tx.stockMovement.create({
+        data: {
+          productId: parsedProductId,
+
+          // Manual stock changes are recorded as ADJUSTMENT
+          type: "ADJUSTMENT",
+
+          quantity: parsedQuantity,
+          before,
+          after,
+
+          note: note?.trim() || null,
+        },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+            },
+          },
+        },
+      });
+
+      return {
+        product: updatedProduct,
+        movement,
+      };
+    });
+
+    // -----------------------------
+    // Success
+    // -----------------------------
+
+    return res.status(200).json({
       success: true,
-      message:
-        "Stock adjusted successfully.",
+      message: "Stock adjusted successfully",
       data: result,
     });
   } catch (error) {
-    next(error);
+    console.error("Stock adjustment error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to adjust stock",
+      error: error.message,
+    });
   }
 };

@@ -19,7 +19,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import api from "../../services/api";
-
+import { getCurrentUser } from "../../services/authService";
 
 const Navbar = ({ onMenuClick }) => {
   const navigate = useNavigate();
@@ -29,23 +29,16 @@ const Navbar = ({ onMenuClick }) => {
   // ==========================================================
 
   const [user, setUser] = useState(null);
-
   const [showProfile, setShowProfile] = useState(false);
-
 
   // ==========================================================
   // SEARCH
   // ==========================================================
 
   const [search, setSearch] = useState("");
-
   const [searchResults, setSearchResults] = useState([]);
-
   const [searchLoading, setSearchLoading] = useState(false);
-
-  const [showSearchResults, setShowSearchResults] =
-    useState(false);
-
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // ==========================================================
   // LOAD USER
@@ -77,15 +70,12 @@ const Navbar = ({ onMenuClick }) => {
               setUser(currentUser);
             }
           } catch (error) {
-            console.log(
-              "Invalid stored user data."
-            );
+            console.log("Invalid stored user data.");
           }
         }
 
-
         // ----------------------------------------------------
-        // Then try backend profile
+        // Then try backend user
         // ----------------------------------------------------
 
         const token =
@@ -97,14 +87,17 @@ const Navbar = ({ onMenuClick }) => {
         }
 
         try {
-          const response = await api.get(
-            "/auth/profile"
-          );
+          // FIX:
+          // Backend route is /auth/me, not /auth/profile.
+          // getCurrentUser() already calls /auth/me.
+          const response = await getCurrentUser();
 
           const profile =
             response?.data?.data ||
             response?.data?.user ||
-            response?.data;
+            response?.data ||
+            response?.user ||
+            response;
 
           if (profile) {
             setUser(profile);
@@ -117,16 +110,12 @@ const Navbar = ({ onMenuClick }) => {
           );
         }
       } catch (error) {
-        console.error(
-          "Load user error:",
-          error
-        );
+        console.error("Load user error:", error);
       }
     };
 
     loadUser();
   }, []);
-
 
   // ==========================================================
   // USER INFORMATION
@@ -138,15 +127,10 @@ const Navbar = ({ onMenuClick }) => {
     user?.username ||
     "Admin";
 
-  const userRole =
-    user?.role ||
-    "ADMIN";
+  const userRole = user?.role || "ADMIN";
 
   const userInitial =
-    userName
-      ?.charAt(0)
-      ?.toUpperCase() || "A";
-
+    userName?.charAt(0)?.toUpperCase() || "A";
 
   // ==========================================================
   // GLOBAL SEARCH
@@ -166,14 +150,11 @@ const Navbar = ({ onMenuClick }) => {
         setSearchLoading(true);
         setShowSearchResults(true);
 
-        const response = await api.get(
-          "/search",
-          {
-            params: {
-              q: query,
-            },
-          }
-        );
+        const response = await api.get("/search", {
+          params: {
+            q: query,
+          },
+        });
 
         const results =
           response?.data?.data ||
@@ -182,15 +163,10 @@ const Navbar = ({ onMenuClick }) => {
           [];
 
         setSearchResults(
-          Array.isArray(results)
-            ? results
-            : []
+          Array.isArray(results) ? results : []
         );
       } catch (error) {
-        console.error(
-          "Global search error:",
-          error
-        );
+        console.error("Global search error:", error);
 
         setSearchResults([]);
       } finally {
@@ -198,17 +174,12 @@ const Navbar = ({ onMenuClick }) => {
       }
     };
 
-
-    const timer = setTimeout(
-      searchGlobal,
-      350
-    );
+    const timer = setTimeout(searchGlobal, 350);
 
     return () => {
       clearTimeout(timer);
     };
   }, [search]);
-
 
   // ==========================================================
   // SEARCH RESULT ICON
@@ -248,7 +219,6 @@ const Navbar = ({ onMenuClick }) => {
     }
   };
 
-
   // ==========================================================
   // SEARCH RESULT CLICK
   // ==========================================================
@@ -263,12 +233,9 @@ const Navbar = ({ onMenuClick }) => {
     }
 
     setSearch("");
-
     setSearchResults([]);
-
     setShowSearchResults(false);
   };
-
 
   // ==========================================================
   // CLEAR SEARCH
@@ -276,12 +243,9 @@ const Navbar = ({ onMenuClick }) => {
 
   const clearSearch = () => {
     setSearch("");
-
     setSearchResults([]);
-
     setShowSearchResults(false);
   };
-
 
   // ==========================================================
   // LOGOUT
@@ -300,7 +264,6 @@ const Navbar = ({ onMenuClick }) => {
 
     navigate("/login");
   };
-
 
   // ==========================================================
   // NAVBAR
@@ -322,30 +285,40 @@ const Navbar = ({ onMenuClick }) => {
         shadow-sm
       "
     >
-
       <div
         className="
           flex
           h-full
+          w-full
+          min-w-0
           items-center
           justify-between
-          px-3
+          gap-2
+          px-2
           sm:px-4
         "
       >
-
         {/* ==================================================
             LEFT SIDE
         ================================================== */}
 
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-
+        <div
+          className="
+            flex
+            min-w-0
+            shrink-0
+            items-center
+            gap-1.5
+            sm:gap-3
+          "
+        >
           {/* HAMBURGER */}
 
           <button
             type="button"
             onClick={onMenuClick}
             title="Toggle sidebar"
+            aria-label="Toggle sidebar"
             className="
               flex
               h-10
@@ -368,27 +341,23 @@ const Navbar = ({ onMenuClick }) => {
             />
           </button>
 
-
-          {/* ==================================================
-              INVENTORY PRO BRAND
-          ================================================== */}
+          {/* INVENTORY PRO BRAND */}
 
           <div
             className="
               flex
               min-w-0
               items-center
-              gap-2.5
+              gap-2
             "
           >
-
             {/* LOGO */}
 
             <div
               className="
                 flex
-                h-10
-                w-10
+                h-9
+                w-9
                 shrink-0
                 items-center
                 justify-center
@@ -396,6 +365,8 @@ const Navbar = ({ onMenuClick }) => {
                 bg-white
                 text-slate-950
                 shadow-sm
+                sm:h-10
+                sm:w-10
               "
             >
               <Package
@@ -404,11 +375,9 @@ const Navbar = ({ onMenuClick }) => {
               />
             </div>
 
-
             {/* BRAND */}
 
             <div className="hidden min-w-0 sm:block">
-
               <div
                 className="
                   truncate
@@ -437,13 +406,9 @@ const Navbar = ({ onMenuClick }) => {
               >
                 Management
               </div>
-
             </div>
-
           </div>
-
         </div>
-
 
         {/* ==================================================
             SEARCH
@@ -452,16 +417,16 @@ const Navbar = ({ onMenuClick }) => {
         <div
           className="
             relative
-            mx-4
+            mx-2
             hidden
+            min-w-0
             max-w-xl
             flex-1
             md:block
+            lg:mx-4
           "
         >
-
           <div className="relative">
-
             <Search
               className="
                 pointer-events-none
@@ -474,7 +439,6 @@ const Navbar = ({ onMenuClick }) => {
                 text-slate-500
               "
             />
-
 
             <input
               type="text"
@@ -508,11 +472,11 @@ const Navbar = ({ onMenuClick }) => {
               "
             />
 
-
             {search && (
               <button
                 type="button"
                 onClick={clearSearch}
+                aria-label="Clear search"
                 className="
                   absolute
                   right-2
@@ -532,16 +496,11 @@ const Navbar = ({ onMenuClick }) => {
                 <X className="h-4 w-4" />
               </button>
             )}
-
           </div>
 
-
-          {/* ==================================================
-              SEARCH RESULTS
-          ================================================== */}
+          {/* SEARCH RESULTS */}
 
           {showSearchResults && (
-
             <div
               className="
                 absolute
@@ -549,6 +508,7 @@ const Navbar = ({ onMenuClick }) => {
                 right-0
                 top-12
                 z-[100]
+                max-h-[70vh]
                 overflow-hidden
                 rounded-xl
                 border
@@ -557,21 +517,14 @@ const Navbar = ({ onMenuClick }) => {
                 shadow-2xl
               "
             >
-
               {searchLoading ? (
-
                 <div className="px-4 py-5 text-center">
-
                   <p className="text-sm text-slate-500">
                     Searching...
                   </p>
-
                 </div>
-
               ) : searchResults.length === 0 ? (
-
                 <div className="px-4 py-6 text-center">
-
                   <Search className="mx-auto h-5 w-5 text-slate-400" />
 
                   <p className="mt-2 text-sm font-medium text-slate-700">
@@ -581,137 +534,118 @@ const Navbar = ({ onMenuClick }) => {
                   <p className="mt-1 text-xs text-slate-400">
                     Try another search.
                   </p>
-
                 </div>
-
               ) : (
-
                 <div className="max-h-[420px] overflow-y-auto py-2">
+                  {searchResults.map((result, index) => {
+                    const Icon = getSearchIcon(
+                      result.type
+                    );
 
-                  {searchResults.map(
-                    (result, index) => {
-
-                      const Icon =
-                        getSearchIcon(
-                          result.type
-                        );
-
-                      return (
-                        <button
-                          key={`${result.type}-${result.id}-${index}`}
-                          type="button"
-                          onClick={() =>
-                            handleSearchResultClick(
-                              result
-                            )
-                          }
+                    return (
+                      <button
+                        key={`${result.type}-${result.id}-${index}`}
+                        type="button"
+                        onClick={() =>
+                          handleSearchResultClick(result)
+                        }
+                        className="
+                          flex
+                          w-full
+                          min-w-0
+                          items-center
+                          gap-2
+                          px-3
+                          py-3
+                          text-left
+                          transition
+                          hover:bg-slate-50
+                          sm:gap-3
+                          sm:px-4
+                        "
+                      >
+                        <div
                           className="
                             flex
-                            w-full
+                            h-9
+                            w-9
+                            shrink-0
                             items-center
-                            gap-3
-                            px-4
-                            py-3
-                            text-left
-                            transition
-                            hover:bg-slate-50
+                            justify-center
+                            rounded-lg
+                            bg-slate-100
+                            text-slate-700
                           "
                         >
+                          <Icon className="h-4 w-4" />
+                        </div>
 
-                          <div
-                            className="
-                              flex
-                              h-9
-                              w-9
-                              shrink-0
-                              items-center
-                              justify-center
-                              rounded-lg
-                              bg-slate-100
-                              text-slate-700
-                            "
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {result.title ||
+                              result.name ||
+                              "Untitled"}
+                          </p>
 
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                            {result.subtitle ||
+                              result.type ||
+                              ""}
+                          </p>
+                        </div>
 
-                          <div className="min-w-0 flex-1">
-
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {result.title ||
-                                result.name ||
-                                "Untitled"}
-                            </p>
-
-                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {result.subtitle ||
-                                result.type ||
-                                ""}
-                            </p>
-
-                          </div>
-
-
-                          <span
-                            className="
-                              shrink-0
-                              rounded-full
-                              bg-slate-100
-                              px-2
-                              py-1
-                              text-[10px]
-                              font-bold
-                              uppercase
-                              tracking-wide
-                              text-slate-500
-                            "
-                          >
-                            {result.type}
-                          </span>
-
-                        </button>
-                      );
-                    }
-                  )}
-
+                        <span
+                          className="
+                            hidden
+                            shrink-0
+                            rounded-full
+                            bg-slate-100
+                            px-2
+                            py-1
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wide
+                            text-slate-500
+                            sm:inline-flex
+                          "
+                        >
+                          {result.type}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-
               )}
-
             </div>
-
           )}
-
         </div>
-
 
         {/* ==================================================
             RIGHT SIDE / USER
         ================================================== */}
 
         <div className="flex shrink-0 items-center">
-
           <div className="relative">
-
             <button
               type="button"
               onClick={() =>
-                setShowProfile(
-                  (previous) => !previous
-                )
+                setShowProfile((previous) => !previous)
               }
+              aria-label="Open profile menu"
               className="
                 flex
                 items-center
-                gap-2
+                gap-1.5
                 rounded-lg
-                px-2
+                px-1.5
                 py-1.5
                 transition
                 hover:bg-slate-800
+                sm:gap-2
+                sm:px-2
               "
             >
-
               {/* AVATAR */}
 
               <div
@@ -719,6 +653,7 @@ const Navbar = ({ onMenuClick }) => {
                   flex
                   h-9
                   w-9
+                  shrink-0
                   items-center
                   justify-center
                   rounded-full
@@ -731,11 +666,9 @@ const Navbar = ({ onMenuClick }) => {
                 {userInitial}
               </div>
 
-
               {/* USER NAME */}
 
               <div className="hidden text-left lg:block">
-
                 <p className="max-w-[130px] truncate text-sm font-semibold text-white">
                   {userName}
                 </p>
@@ -743,9 +676,7 @@ const Navbar = ({ onMenuClick }) => {
                 <p className="text-[10px] uppercase tracking-wide text-slate-500">
                   {userRole}
                 </p>
-
               </div>
-
 
               <ChevronDown
                 className={`
@@ -762,43 +693,40 @@ const Navbar = ({ onMenuClick }) => {
                   }
                 `}
               />
-
             </button>
-
 
             {/* ==================================================
                 PROFILE DROPDOWN
             ================================================== */}
 
             {showProfile && (
-
               <div
                 className="
                   absolute
                   right-0
                   top-12
                   z-[100]
-                  w-64
+                  w-[calc(100vw-1rem)]
+                  max-w-64
                   overflow-hidden
                   rounded-xl
                   border
                   border-slate-200
                   bg-white
                   shadow-2xl
+                  sm:w-64
                 "
               >
-
                 {/* USER INFO */}
 
                 <div className="border-b border-slate-100 px-4 py-4">
-
                   <div className="flex items-center gap-3">
-
                     <div
                       className="
                         flex
                         h-10
                         w-10
+                        shrink-0
                         items-center
                         justify-center
                         rounded-full
@@ -812,7 +740,6 @@ const Navbar = ({ onMenuClick }) => {
                     </div>
 
                     <div className="min-w-0">
-
                       <p className="truncate text-sm font-bold text-slate-900">
                         {userName}
                       </p>
@@ -821,26 +748,21 @@ const Navbar = ({ onMenuClick }) => {
                         {user?.email ||
                           "InventoryPro User"}
                       </p>
-
                     </div>
-
                   </div>
-
                 </div>
-
 
                 {/* ROLE */}
 
                 <div className="px-4 py-3">
-
-                  <div className="flex items-center justify-between">
-
+                  <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-medium text-slate-500">
                       Role
                     </span>
 
                     <span
                       className="
+                        shrink-0
                         rounded-full
                         bg-slate-100
                         px-2.5
@@ -854,16 +776,12 @@ const Navbar = ({ onMenuClick }) => {
                     >
                       {userRole}
                     </span>
-
                   </div>
-
                 </div>
-
 
                 {/* LOGOUT */}
 
                 <div className="border-t border-slate-100 p-2">
-
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -882,22 +800,14 @@ const Navbar = ({ onMenuClick }) => {
                   >
                     Sign out
                   </button>
-
                 </div>
-
               </div>
-
             )}
-
           </div>
-
         </div>
-
       </div>
-
     </nav>
   );
 };
-
 
 export default Navbar;

@@ -26,33 +26,42 @@ const CategoryChart = ({ data = [] }) => {
   }));
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-5">
-        <h2 className="text-lg font-bold text-slate-900">
+    <div className="w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5">
+      
+      {/* Header */}
+      <div className="mb-3 sm:mb-4 md:mb-5">
+        <h2 className="text-base font-bold text-slate-900 sm:text-lg">
           Products by Category
         </h2>
 
-        <p className="text-sm text-slate-500">
+        <p className="mt-1 text-xs text-slate-500 sm:text-sm">
           Product distribution across categories
         </p>
       </div>
 
-      <div className="h-[320px]">
+      {/* Chart */}
+      <div className="h-[260px] w-full sm:h-[300px] md:h-[320px]">
         {chartData.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
             No category data available
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+          >
             <PieChart>
+
               <Pie
                 data={chartData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
-                cy="45%"
-                outerRadius={100}
+                cy="42%"
+                outerRadius="30%"
                 label
+                labelLine={false}
               >
                 {chartData.map((_, index) => (
                   <Cell
@@ -64,7 +73,15 @@ const CategoryChart = ({ data = [] }) => {
 
               <Tooltip />
 
-              <Legend />
+              <Legend
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{
+                  fontSize: "12px",
+                  paddingTop: "10px",
+                }}
+              />
+
             </PieChart>
           </ResponsiveContainer>
         )}

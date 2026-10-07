@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, ArrowLeft } from "lucide-react";
@@ -35,34 +34,130 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-100 px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl sm:p-10">
-
+    <div
+      className="
+        flex
+        min-h-screen
+        w-full
+        items-center
+        justify-center
+        bg-gradient-to-br
+        from-blue-50
+        via-white
+        to-indigo-100
+        px-3
+        py-6
+        sm:px-4
+        sm:py-8
+      "
+    >
+      <div
+        className="
+          w-full
+          max-w-md
+          rounded-2xl
+          bg-white
+          p-5
+          shadow-2xl
+          sm:rounded-3xl
+          sm:p-8
+          md:p-10
+        "
+      >
         {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
-            <Mail size={26} />
+        <div className="mb-6 text-center sm:mb-8">
+          <div
+            className="
+              mx-auto
+              mb-4
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-2xl
+              bg-blue-600
+              text-white
+              sm:mb-5
+              sm:h-14
+              sm:w-14
+            "
+          >
+            <Mail
+              size={24}
+              className="sm:h-[26px] sm:w-[26px]"
+            />
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1
+            className="
+              text-2xl
+              font-bold
+              text-gray-900
+              sm:text-3xl
+            "
+          >
             Forgot Password?
           </h1>
 
-          <p className="mt-2 text-gray-500">
+          <p
+            className="
+              mx-auto
+              mt-2
+              max-w-sm
+              text-sm
+              leading-5
+              text-gray-500
+              sm:text-base
+              sm:leading-6
+            "
+          >
             Enter your email and we'll help you reset your password.
           </p>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div
+            className="
+              mb-4
+              rounded-xl
+              border
+              border-red-200
+              bg-red-50
+              px-3
+              py-3
+              text-xs
+              leading-5
+              text-red-600
+              sm:mb-5
+              sm:px-4
+              sm:text-sm
+            "
+          >
             {error}
           </div>
         )}
 
         {/* Success */}
         {message && (
-          <div className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div
+            className="
+              mb-4
+              rounded-xl
+              border
+              border-green-200
+              bg-green-50
+              px-3
+              py-3
+              text-xs
+              leading-5
+              text-green-700
+              sm:mb-5
+              sm:px-4
+              sm:text-sm
+            "
+          >
             {message}
           </div>
         )}
@@ -71,15 +166,29 @@ const ForgotPassword = () => {
         <form onSubmit={handleSubmit}>
           <label
             htmlFor="email"
-            className="mb-2 block text-sm font-semibold text-gray-700"
+            className="
+              mb-2
+              block
+              text-xs
+              font-semibold
+              text-gray-700
+              sm:text-sm
+            "
           >
             Email Address
           </label>
 
-          <div className="relative mb-6">
+          <div className="relative mb-5 sm:mb-6">
             <Mail
-              size={19}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+              className="
+                absolute
+                left-3.5
+                top-1/2
+                -translate-y-1/2
+                text-gray-400
+                sm:left-4
+              "
             />
 
             <input
@@ -89,14 +198,44 @@ const ForgotPassword = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-gray-300 py-3.5 pl-11 pr-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="
+                w-full
+                rounded-xl
+                border
+                border-gray-300
+                py-3
+                pl-10
+                pr-3
+                text-sm
+                outline-none
+                transition
+                focus:border-blue-500
+                focus:ring-4
+                focus:ring-blue-100
+                sm:py-3.5
+                sm:pl-11
+                sm:pr-4
+              "
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="
+              w-full
+              rounded-xl
+              bg-blue-600
+              py-3
+              text-sm
+              font-semibold
+              text-white
+              transition
+              hover:bg-blue-700
+              disabled:cursor-not-allowed
+              disabled:opacity-60
+              sm:py-3.5
+            "
           >
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
@@ -105,9 +244,21 @@ const ForgotPassword = () => {
         {/* Back to Login */}
         <Link
           to="/login"
-          className="mt-7 flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+          className="
+            mt-6
+            flex
+            items-center
+            justify-center
+            gap-2
+            text-xs
+            font-semibold
+            text-blue-600
+            hover:text-blue-700
+            sm:mt-7
+            sm:text-sm
+          "
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={16} />
           Back to Login
         </Link>
       </div>

@@ -6,29 +6,17 @@ const generateInvoiceNumber = () => {
   )}`;
 };
 
-const parsePositiveId = (
-  value,
-  fieldName
-) => {
+const parsePositiveId = (value, fieldName) => {
   const id = Number(value);
 
-  if (
-    !Number.isInteger(id) ||
-    id <= 0
-  ) {
-    throw new Error(
-      `Invalid ${fieldName}.`
-    );
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`Invalid ${fieldName}.`);
   }
 
   return id;
 };
 
-export const createSale = async (
-  req,
-  res,
-  next
-) => {
+export const createSale = async (req, res, next) => {
   try {
     const {
       customerId,
@@ -38,269 +26,402 @@ export const createSale = async (
       discount = 0,
     } = req.body;
 
-    if (
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
-      throw new Error(
-        "At least one product is required."
-      );
+    // -----------------------------------------
+    // Validate items
+    // -----------------------------------------
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one product is required.",
+      });
     }
+
+    // -----------------------------------------
+    // Validate tax
+    // -----------------------------------------
 
     const taxAmount = Number(tax || 0);
-    const discountAmount =
-      Number(discount || 0);
 
-    if (
-      !Number.isFinite(taxAmount) ||
-      taxAmount < 0
-    ) {
-      throw new Error(
-        "Invalid tax amount."
-      );
+    if (!Number.isFinite(taxAmount) || taxAmount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tax amount.",
+      });
     }
+
+    // -----------------------------------------
+    // Validate discount
+    // -----------------------------------------
+
+    const discountAmount = Number(discount || 0);
 
     if (
       !Number.isFinite(discountAmount) ||
       discountAmount < 0
     ) {
-      throw new Error(
-        "Invalid discount amount."
-      );
+      return res.status(400).json({
+        success: false,
+        message: "Invalid discount amount.",
+      });
     }
 
-    const result =
-      await prisma.$transaction(
-        async (tx) => {
-          let subtotal = 0;
+    // -----------------------------------------
+    // Create sale transaction
+    // -----------------------------------------
 
-          const preparedItems = [];
+    const result = await prisma.$transaction(async (tx) => {
+      let subtotal = 0;
 
-          for (const item of items) {
-            const productId =
-              parsePositiveId(
-                item.productId,
-                "product ID"
-              );
+      const preparedItems = [];
 
-            const product =
-              await tx.product.findUnique({
-                where: {
-                  id: productId,
-                },
-              });
+      // -----------------------------------------
+      // Validate every product
+      // -----------------------------------------
 
-            if (!product) {
-              throw new Error(
-                `Product ${productId} not found.`
-              );
-            }
+      for (const item of items) {
+        const productId = parsePositiveId(
+          item.productId,
+          "product ID"
+        );
 
-            const quantity =
-              Number(item.quantity);
+        const product = await tx.product.findUnique({
+          where: {
+            id: productId,
+          },
+        });
 
-            if (
-              !Number.isInteger(quantity) ||
-              quantity <= 0
-            ) {
-              throw new Error(
-                `Invalid quantity for ${product.name}.`
-              );
-            }
+        if (!product) {
+          throw new Error(
+            `Product ${productId} not found.`
+          );
+        }
 
-            if (
-              product.quantity <
-              quantity
-            ) {
-              throw new Error(
-                `Insufficient stock for ${product.name}. Available: ${product.quantity}.`
-              );
-            }
+        // ---------------------------------------
+        // Validate quantity
+        // ---------------------------------------
 
-            const price =
-              item.price !== undefined &&
-              item.price !== ""
-                ? Number(item.price)
-                : Number(product.price);
+        const quantity = Number(item.quantity);
 
-            if (
-              !Number.isFinite(price) ||
-              price < 0
-            ) {
-              throw new Error(
-                `Invalid price for ${product.name}.`
-              );
-            }
+        if (
+          !Number.isInteger(quantity) ||
+          quantity <= 0
+        ) {
+          throw new Error(
+            `Invalid quantity for ${product.name}.`
+          );
+        }
 
-            const total =
-              price * quantity;
+        // ---------------------------------------
+        // Check stock
+        // ---------------------------------------
 
-            subtotal += total;
+        if (product.quantity < quantity) {
+          const error = new Error(
+            `Insufficient stock for ${product.name}. Available: ${product.quantity}.`
+          );
 
-            preparedItems.push({
-              product,
-              quantity,
-              price,
-              total,
-            });
-          }
+          error.statusCode = 400;
 
-          const total =
-            subtotal +
-            taxAmount -
-            discountAmount;
+          throw error;
+        }
 
-          if (total < 0) {
-            throw new Error(
-              "Sale total cannot be negative."
-            );
-          }
+        // ---------------------------------------
+        // Determine price
+        // ---------------------------------------
 
-          let invoiceNumber =
-            generateInvoiceNumber();
+        const price =
+          item.price !== undefined &&
+          item.price !== ""
+            ? Number(item.price)
+            : Number(product.price);
 
-          while (
-            await tx.sale.findUnique({
-              where: {
-                invoiceNumber,
-              },
-            })
-          ) {
-            invoiceNumber =
-              generateInvoiceNumber();
-          }
+        if (!Number.isFinite(price) || price < 0) {
+          throw new Error(
+            `Invalid price for ${product.name}.`
+          );
+        }
 
-          let validCustomerId = null;
+        // ---------------------------------------
+        // Calculate item total
+        // ---------------------------------------
 
-          if (
-            customerId !== undefined &&
-            customerId !== null &&
-            customerId !== ""
-          ) {
-            const parsedCustomerId =
-              parsePositiveId(
-                customerId,
-                "customer ID"
-              );
+        const total = price * quantity;
 
-            const customer =
-              await tx.customer.findUnique({
-                where: {
-                  id: parsedCustomerId,
-                },
-              });
+        subtotal += total;
 
-            if (!customer) {
-              throw new Error(
-                "Customer not found."
-              );
-            }
+        preparedItems.push({
+          product,
+          quantity,
+          price,
+          total,
+        });
+      }
 
-            validCustomerId =
-              customer.id;
-          }
+      // -----------------------------------------
+      // Calculate final sale total
+      // -----------------------------------------
 
-          const sale =
-            await tx.sale.create({
-              data: {
-                invoiceNumber,
-                customerId:
-                  validCustomerId,
-                customerName:
-                  customerName
-                    ? String(
-                        customerName
-                      ).trim()
-                    : null,
-                subtotal,
-                tax: taxAmount,
-                discount:
-                  discountAmount,
-                total,
-                status: "COMPLETED",
-              },
-            });
+      const total =
+        subtotal +
+        taxAmount -
+        discountAmount;
 
-          for (const item of preparedItems) {
-            const before =
-              item.product.quantity;
+      if (total < 0) {
+        throw new Error(
+          "Sale total cannot be negative."
+        );
+      }
 
-            const after =
-              before - item.quantity;
+      // -----------------------------------------
+      // Generate unique invoice number
+      // -----------------------------------------
 
-            await tx.saleItem.create({
-              data: {
-                saleId: sale.id,
-                productId:
-                  item.product.id,
-                quantity:
-                  item.quantity,
-                price: item.price,
-                total: item.total,
-              },
-            });
+      let invoiceNumber =
+        generateInvoiceNumber();
 
-            await tx.product.update({
-              where: {
-                id: item.product.id,
-              },
-              data: {
-                quantity: after,
-              },
-            });
+      while (
+        await tx.sale.findUnique({
+          where: {
+            invoiceNumber,
+          },
+        })
+      ) {
+        invoiceNumber =
+          generateInvoiceNumber();
+      }
 
-            await tx.stockMovement.create({
-              data: {
-                productId:
-                  item.product.id,
-                type: "SALE",
-                quantity:
-                  item.quantity,
-                before,
-                after,
-                note: `Sale ${sale.invoiceNumber}`,
-              },
-            });
-          }
+      // -----------------------------------------
+      // Validate customer
+      // -----------------------------------------
 
-          return tx.sale.findUnique({
+      let validCustomerId = null;
+
+      if (
+        customerId !== undefined &&
+        customerId !== null &&
+        customerId !== ""
+      ) {
+        const parsedCustomerId =
+          parsePositiveId(
+            customerId,
+            "customer ID"
+          );
+
+        const customer =
+          await tx.customer.findUnique({
             where: {
-              id: sale.id,
-            },
-            include: {
-              customer: true,
-              items: {
-                include: {
-                  product: true,
-                },
-              },
+              id: parsedCustomerId,
             },
           });
-        }
-      );
 
-    res.status(201).json({
+        if (!customer) {
+          const error = new Error(
+            "Customer not found."
+          );
+
+          error.statusCode = 404;
+
+          throw error;
+        }
+
+        validCustomerId = customer.id;
+      }
+
+      // -----------------------------------------
+      // Create sale
+      // -----------------------------------------
+
+      const sale = await tx.sale.create({
+        data: {
+          invoiceNumber,
+
+          customerId: validCustomerId,
+
+          customerName: customerName
+            ? String(customerName).trim()
+            : null,
+
+          subtotal,
+          tax: taxAmount,
+          discount: discountAmount,
+          total,
+
+          status: "COMPLETED",
+        },
+      });
+
+      // -----------------------------------------
+      // Create sale items + update inventory
+      // -----------------------------------------
+
+      for (const item of preparedItems) {
+        const before = item.product.quantity;
+
+        const after =
+          before - item.quantity;
+
+        // ---------------------------------------
+        // Create SaleItem
+        // ---------------------------------------
+
+        await tx.saleItem.create({
+          data: {
+            saleId: sale.id,
+
+            productId: item.product.id,
+
+            quantity: item.quantity,
+
+            price: item.price,
+
+            total: item.total,
+          },
+        });
+
+        // ---------------------------------------
+        // Update product stock
+        // ---------------------------------------
+
+        await tx.product.update({
+          where: {
+            id: item.product.id,
+          },
+
+          data: {
+            quantity: after,
+          },
+        });
+
+        // ---------------------------------------
+        // Create stock movement
+        // ---------------------------------------
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.product.id,
+
+            type: "SALE",
+
+            quantity: item.quantity,
+
+            before,
+
+            after,
+
+            note: `Sale ${sale.invoiceNumber}`,
+          },
+        });
+      }
+
+      // -----------------------------------------
+      // Return complete sale
+      // -----------------------------------------
+
+      return tx.sale.findUnique({
+        where: {
+          id: sale.id,
+        },
+
+        include: {
+          customer: true,
+
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+    });
+
+    // -----------------------------------------
+    // Success response
+    // -----------------------------------------
+
+    return res.status(201).json({
       success: true,
-      message:
-        "Sale created successfully.",
+
+      message: "Sale created successfully.",
+
       data: result,
+
       sale: result,
     });
   } catch (error) {
-    console.error(
-      "createSale error:",
-      error
-    );
+    console.error("createSale error:", error);
 
-    next(error);
+    // -----------------------------------------
+    // Business / validation errors
+    // -----------------------------------------
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // -----------------------------------------
+    // Known validation errors
+    // -----------------------------------------
+
+    const businessErrors = [
+      "At least one product is required.",
+      "Invalid tax amount.",
+      "Invalid discount amount.",
+      "Sale total cannot be negative.",
+    ];
+
+    if (
+      businessErrors.includes(error.message)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message?.startsWith(
+        "Invalid product ID"
+      ) ||
+      error.message?.startsWith(
+        "Invalid customer ID"
+      ) ||
+      error.message?.startsWith(
+        "Invalid quantity"
+      ) ||
+      error.message?.startsWith(
+        "Invalid price"
+      ) ||
+      error.message?.startsWith(
+        "Insufficient stock"
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // -----------------------------------------
+    // Unexpected server error
+    // -----------------------------------------
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create sale.",
+      error: error.message,
+    });
   }
 };
 
-export const getSales = async (
-  req,
-  res,
-  next
-) => {
+// =====================================================
+// GET ALL SALES
+// =====================================================
+
+export const getSales = async (req, res, next) => {
   try {
     const search = String(
       req.query.search || ""
@@ -315,6 +436,7 @@ export const getSales = async (
                 mode: "insensitive",
               },
             },
+
             {
               customerName: {
                 contains: search,
@@ -328,28 +450,41 @@ export const getSales = async (
     const sales =
       await prisma.sale.findMany({
         where,
+
         include: {
           customer: true,
+
           items: {
             include: {
               product: true,
             },
           },
         },
+
         orderBy: {
           createdAt: "desc",
         },
       });
 
-    res.json({
+    return res.json({
       success: true,
       data: sales,
       sales,
     });
   } catch (error) {
-    next(error);
+    console.error("getSales error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch sales.",
+      error: error.message,
+    });
   }
 };
+
+// =====================================================
+// GET SALE BY ID
+// =====================================================
 
 export const getSaleById = async (
   req,
@@ -367,8 +502,10 @@ export const getSaleById = async (
         where: {
           id,
         },
+
         include: {
           customer: true,
+
           items: {
             include: {
               product: true,
@@ -384,12 +521,29 @@ export const getSaleById = async (
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: sale,
       sale,
     });
   } catch (error) {
-    next(error);
+    console.error("getSaleById error:", error);
+
+    if (
+      error.message?.startsWith(
+        "Invalid sale ID"
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch sale.",
+      error: error.message,
+    });
   }
 };

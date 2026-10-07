@@ -10,12 +10,16 @@ import {
   Users,
   Tags,
   BarChart3,
+  X,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
 
-
-const Sidebar = ({ collapsed = false }) => {
+const Sidebar = ({
+  collapsed = false,
+  mobileOpen = false,
+  onMobileClose,
+}) => {
   const menuItems = [
     {
       name: "Dashboard",
@@ -65,158 +69,227 @@ const Sidebar = ({ collapsed = false }) => {
   ];
 
   return (
-    <aside
-      className={`
-        fixed
-        left-0
-        top-16
-        bottom-0
-        z-40
-        border-r
-        border-slate-800
-        bg-slate-950
-        text-white
-        transition-all
-        duration-300
-        ease-in-out
-        ${
-          collapsed
-            ? "w-20"
-            : "w-64"
-        }
-      `}
-    >
+    <>
+      {/* =================================================
+          MOBILE OVERLAY
+      ================================================= */}
 
-      <nav
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          className="
+            fixed
+            inset-0
+            z-40
+            bg-black/50
+            backdrop-blur-[1px]
+            lg:hidden
+          "
+        />
+      )}
+
+      {/* =================================================
+          SIDEBAR
+      ================================================= */}
+
+      <aside
         className={`
-          h-full
-          overflow-y-auto
-          py-5
+          fixed
+          left-0
+          top-16
+          bottom-0
+          z-50
+          border-r
+          border-slate-800
+          bg-slate-950
+          text-white
+          shadow-xl
+          transition-all
+          duration-300
+          ease-in-out
+
+          w-64
+
+          ${
+            mobileOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+          }
+
+          lg:translate-x-0
+
           ${
             collapsed
-              ? "px-2"
-              : "px-3"
+              ? "lg:w-20"
+              : "lg:w-64"
           }
         `}
       >
-
         {/* =================================================
-            MAIN NAVIGATION
+            MOBILE SIDEBAR HEADER
         ================================================= */}
 
-        <div className="space-y-1">
+        <div
+          className="
+            flex
+            h-14
+            items-center
+            justify-between
+            border-b
+            border-slate-800
+            px-4
+            lg:hidden
+          "
+        >
+          <div className="text-sm font-semibold text-white">
+            Navigation
+          </div>
 
-          {menuItems.map((item) => {
-            const Icon = item.icon;
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="Close sidebar"
+            className="
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-lg
+              text-slate-300
+              transition
+              hover:bg-slate-800
+              hover:text-white
+            "
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                title={
-                  collapsed
-                    ? item.name
-                    : undefined
-                }
-                className={({ isActive }) => `
-                  group
-                  flex
-                  h-11
-                  items-center
-                  rounded-lg
-                  transition-all
-                  duration-200
+        {/* =================================================
+            NAVIGATION
+        ================================================= */}
 
-                  ${
+        <nav
+          className={`
+            h-[calc(100%-3.5rem)]
+            overflow-y-auto
+            py-4
+            lg:h-full
+            lg:py-5
+
+            ${
+              collapsed
+                ? "px-2"
+                : "px-3"
+            }
+          `}
+        >
+          {/* =================================================
+              MAIN NAVIGATION
+          ================================================= */}
+
+          <div className="space-y-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  title={
                     collapsed
-                      ? "justify-center"
-                      : "gap-3 px-2"
+                      ? item.name
+                      : undefined
                   }
+                  onClick={onMobileClose}
+                  className={({ isActive }) => `
+                    group
+                    flex
+                    h-11
+                    w-full
+                    items-center
+                    rounded-lg
+                    transition-all
+                    duration-200
 
-                  ${
-                    isActive
-                      ? `
-                        bg-white
-                        text-slate-950
-                        shadow-sm
-                      `
-                      : `
-                        text-slate-300
-                        hover:bg-slate-800
-                        hover:text-white
-                      `
-                  }
-                `}
-              >
+                    ${
+                      collapsed
+                        ? "lg:justify-center"
+                        : "gap-3 px-2"
+                    }
 
-                <Icon
-                  className="h-5 w-5 shrink-0"
-                  strokeWidth={2}
-                />
+                    ${
+                      isActive
+                        ? `
+                          bg-white
+                          text-slate-950
+                          shadow-sm
+                        `
+                        : `
+                          text-slate-300
+                          hover:bg-slate-800
+                          hover:text-white
+                        `
+                    }
+                  `}
+                >
+                  <Icon
+                    className="h-5 w-5 shrink-0"
+                    strokeWidth={2}
+                  />
 
-                {!collapsed && (
-                  <span className="text-sm font-medium">
-                    {item.name}
-                  </span>
-                )}
+                  {/* Desktop collapsed mode */}
+                  {!collapsed && (
+                    <span className="truncate text-sm font-medium">
+                      {item.name}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
 
-              </NavLink>
-            );
-          })}
+          {/* =================================================
+              SIDEBAR FOOTER
+          ================================================= */}
 
-        </div>
+          <div className="mt-8 border-t border-slate-800 pt-5">
+            {!collapsed ? (
+              <div className="px-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  Inventory Management
+                </p>
 
-
-        {/* =================================================
-            SIDEBAR FOOTER
-        ================================================= */}
-
-        <div className="mt-8 border-t border-slate-800 pt-5">
-
-          {!collapsed ? (
-
-            <div className="px-2">
-
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Inventory Management
-              </p>
-
-              <p className="mt-1 text-xs text-slate-600">
-                Manage your business
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div className="flex justify-center">
-
-              <div
-                title="Inventory Management"
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  bg-slate-900
-                  text-xs
-                  font-bold
-                  text-slate-400
-                "
-              >
-                IP
+                <p className="mt-1 text-xs text-slate-600">
+                  Manage your business
+                </p>
               </div>
-
-            </div>
-
-          )}
-
-        </div>
-
-      </nav>
-    </aside>
+            ) : (
+              <div className="flex justify-center">
+                <div
+                  title="Inventory Management"
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-lg
+                    bg-slate-900
+                    text-xs
+                    font-bold
+                    text-slate-400
+                  "
+                >
+                  IP
+                </div>
+              </div>
+            )}
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 };
 
