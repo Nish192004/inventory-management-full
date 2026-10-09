@@ -1,81 +1,126 @@
 import React from "react";
 
-const RecentActivity = ({ activities = [] }) => {
+import { Activity } from "lucide-react";
+
+
+// ============================================================
+// RECENT ACTIVITY
+// refreshKey  -> changes after every dashboard refresh so rows
+//                replay their fade-in animation
+// refreshing  -> dims the list while the dashboard reloads
+// ============================================================
+
+const RecentActivity = ({
+  activities = [],
+  refreshKey = 0,
+  refreshing = false,
+}) => {
+  const items = Array.isArray(activities) ? activities.slice(0, 8) : [];
+
   return (
-    <div className="w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5">
-      
-      {/* Header */}
-      <div className="mb-4 sm:mb-5">
-        <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-          Recent Activity
-        </h2>
+    <>
+      <style>
+        {`
+          @keyframes activityRowIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
 
-        <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-          Latest inventory activity
-        </p>
-      </div>
+          .activity-row-in {
+            animation: activityRowIn 0.3s ease-out both;
+          }
 
-      {/* Empty State */}
-      {activities.length === 0 ? (
-        <div className="py-8 text-center text-xs text-slate-500 sm:py-10 sm:text-sm">
-          No recent activity
+          @media (prefers-reduced-motion: reduce) {
+            .activity-row-in {
+              animation: none;
+            }
+          }
+        `}
+      </style>
+
+      <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+        {/* HEADER */}
+        <div className="border-b border-slate-200 px-5 py-4">
+
+          <h3 className="font-semibold text-slate-900">
+            Recent Activity
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Latest inventory activity.
+          </p>
+
         </div>
-      ) : (
-        <div className="space-y-3 sm:space-y-4">
-          {activities.slice(0, 8).map((activity, index) => (
-            <div
-              key={activity.id || index}
-              className="
-                flex
-                min-w-0
-                gap-2
-                border-b
-                border-slate-100
-                pb-3
-                last:border-0
-                sm:gap-3
-              "
-            >
-              {/* Activity Indicator */}
+
+        {items.length === 0 ? (
+
+          <div className="py-16 text-center">
+
+            <Activity className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+
+            <p className="font-medium text-slate-700">
+              No recent activity.
+            </p>
+
+            <p className="mt-1 text-sm text-slate-400">
+              Inventory changes will appear here.
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div
+            className={`divide-y divide-slate-100 transition-opacity duration-200 ${
+              refreshing ? "opacity-70" : "opacity-100"
+            }`}
+          >
+
+            {items.map((activity, index) => (
               <div
-                className="
-                  mt-1.5
-                  h-2
-                  w-2
-                  shrink-0
-                  rounded-full
-                  bg-blue-500
-                  sm:h-2.5
-                  sm:w-2.5
-                "
-              />
+                key={`${activity.id || index}-${refreshKey}`}
+                className="activity-row-in flex min-w-0 items-start gap-3 px-5 py-4 transition hover:bg-slate-50"
+                style={{
+                  animationDelay: `${Math.min(index, 12) * 30}ms`,
+                }}
+              >
 
-              {/* Activity Content */}
-              <div className="min-w-0 flex-1">
-                
-                <p className="break-words text-xs font-medium text-slate-900 sm:text-sm">
-                  {activity.type ||
-                    activity.action ||
-                    "Inventory activity"}
-                </p>
+                {/* INDICATOR */}
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-900" />
 
-                <p className="mt-1 break-words text-[11px] leading-4 text-slate-500 sm:text-xs">
-                  {activity.description ||
-                    activity.product?.name ||
-                    "Product inventory updated"}
-                </p>
+                {/* CONTENT */}
+                <div className="min-w-0 flex-1">
 
-                {activity.createdAt && (
-                  <p className="mt-1 break-words text-[10px] leading-4 text-slate-400 sm:text-xs">
-                    {new Date(activity.createdAt).toLocaleString("en-IN")}
+                  <p className="break-words font-semibold text-slate-900">
+                    {activity.type ||
+                      activity.action ||
+                      "Inventory activity"}
                   </p>
-                )}
+
+                  <p className="mt-1 break-words text-sm text-slate-600">
+                    {activity.description ||
+                      activity.product?.name ||
+                      "Product inventory updated"}
+                  </p>
+
+                  {activity.createdAt && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {new Date(activity.createdAt).toLocaleString("en-IN")}
+                    </p>
+                  )}
+
+                </div>
+
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+
+          </div>
+
+        )}
+
+      </div>
+    </>
   );
 };
 

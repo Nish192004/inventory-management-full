@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   Building2,
@@ -9,9 +9,8 @@ import {
   Trash2,
   Eye,
   X,
-  Mail,
-  Phone,
-  MapPin,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 import { toast } from "react-toastify";
@@ -26,14 +25,99 @@ import {
 
 
 // ============================================================
-// EMPTY FORM
+// CONSTANTS
 // ============================================================
+
+// Minimum time the refresh animation stays visible (ms)
+const MIN_REFRESH_TIME = 700;
 
 const emptyForm = {
   name: "",
   email: "",
   phone: "",
   address: "",
+};
+
+const SUPPLIER_HEADINGS = [
+  "Supplier",
+  "Email",
+  "Phone",
+  "Address",
+  "Created",
+];
+
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const toArray = (value) =>
+  Array.isArray(value) ? value : [];
+
+const formatTime = (date) =>
+  date
+    ? date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "";
+
+
+// ============================================================
+// TABLE HEAD (shared by skeleton + real table)
+// ============================================================
+
+const SupplierTableHead = () => (
+  <thead className="border-b border-slate-200 bg-slate-50">
+    <tr>
+      {SUPPLIER_HEADINGS.map((heading) => (
+        <th
+          key={heading}
+          className="px-5 py-4 font-semibold text-slate-600"
+        >
+          {heading}
+        </th>
+      ))}
+      <th className="px-5 py-4 text-right font-semibold text-slate-600">
+        Actions
+      </th>
+    </tr>
+  </thead>
+);
+
+
+// ============================================================
+// SUPPLIER TABLE SKELETON (first load only)
+// ============================================================
+
+const SupplierTableSkeleton = () => {
+  const rows = Array.from({ length: 7 });
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[950px] text-left text-sm">
+
+        <SupplierTableHead />
+
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((_, index) => (
+            <tr key={index} className="animate-pulse">
+              <td className="px-5 py-5"><div className="h-4 w-32 rounded bg-slate-200" /></td>
+              <td className="px-5 py-5"><div className="h-4 w-40 rounded bg-slate-200" /></td>
+              <td className="px-5 py-5"><div className="h-4 w-28 rounded bg-slate-200" /></td>
+              <td className="px-5 py-5"><div className="h-4 w-44 rounded bg-slate-200" /></td>
+              <td className="px-5 py-5"><div className="h-4 w-24 rounded bg-slate-200" /></td>
+              <td className="px-5 py-5">
+                <div className="flex justify-end">
+                  <div className="h-8 w-8 rounded-lg bg-slate-200" />
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+
+      </table>
+    </div>
+  );
 };
 
 
@@ -46,49 +130,58 @@ const Suppliers = () => {
 
   const [search, setSearch] = useState("");
 
+  // first load only -> skeleton
   const [loading, setLoading] = useState(true);
+
+  // manual refresh -> progress bar + overlay (table stays visible)
+  const [refreshing, setRefreshing] = useState(false);
+
+  // changes after every refresh so rows replay their fade-in animation
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
 
   const [modal, setModal] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
 
-  const [selectedSupplier, setSelectedSupplier] =
-    useState(null);
-
-  const [form, setForm] = useState({
-    ...emptyForm,
-  });
+  const [form, setForm] = useState({ ...emptyForm });
 
 
-  // ==========================================================
+  // ==================================================
   // LOAD SUPPLIERS
-  // ==========================================================
+  // silent = true  -> table stays on screen
+  // silent = false -> skeleton (first load only)
+  // returns true on success, false on failure
+  // ==================================================
 
-  const loadSuppliers = async () => {
+  const loadSuppliers = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
+
       setError("");
 
       const response = await getSuppliers();
 
-      const supplierData =
-        response?.data ||
-        response?.suppliers ||
-        response ||
-        [];
-
       setSuppliers(
-        Array.isArray(supplierData)
-          ? supplierData
-          : []
+        toArray(
+          response?.data ||
+            response?.suppliers ||
+            response
+        )
       );
+
+      setLastUpdated(new Date());
+
+      return true;
+
     } catch (err) {
-      console.error(
-        "Load suppliers error:",
-        err
-      );
+      console.error("Suppliers loading error:", err);
 
       const message =
         err?.response?.data?.message ||
@@ -96,78 +189,102 @@ const Suppliers = () => {
         "Failed to load suppliers.";
 
       setError(message);
+      toast.error(message);
+
+      return false;
+
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
-
-
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
 
   useEffect(() => {
     loadSuppliers();
   }, []);
 
 
-  // ==========================================================
-  // SEARCH
-  // ==========================================================
+  // ==================================================
+  // SILENT RELOAD + REPLAY ROW ANIMATION
+  // used after create / update / delete
+  // ==================================================
 
-  const filteredSuppliers = useMemo(() => {
-    const value = search
-      .toLowerCase()
-      .trim();
-
-    if (!value) {
-      return suppliers;
-    }
-
-    return suppliers.filter((supplier) => {
-      return (
-        supplier.name
-          ?.toLowerCase()
-          .includes(value) ||
-
-        supplier.email
-          ?.toLowerCase()
-          .includes(value) ||
-
-        supplier.phone
-          ?.toLowerCase()
-          .includes(value) ||
-
-        supplier.address
-          ?.toLowerCase()
-          .includes(value)
-      );
-    });
-  }, [suppliers, search]);
-
-
-  // ==========================================================
-  // OPEN ADD
-  // ==========================================================
-
-  const openAdd = () => {
-    setForm({
-      ...emptyForm,
-    });
-
-    setSelectedSupplier(null);
-
-    setError("");
-
-    setModal("form");
+  const reloadAndAnimate = async () => {
+    await loadSuppliers({ silent: true });
+    setRefreshKey((previous) => previous + 1);
   };
 
 
-  // ==========================================================
-  // OPEN EDIT
-  // ==========================================================
+  // ==================================================
+  // REFRESH (smooth + clearly visible)
+  // ==================================================
+
+  const handleRefresh = async () => {
+    if (refreshing || loading) {
+      return;
+    }
+
+    setRefreshing(true);
+
+    try {
+      // run the real reload AND a minimum delay together,
+      // so the animation is always visible even if the API is instant
+      const [ok] = await Promise.all([
+        loadSuppliers({ silent: true }),
+        wait(MIN_REFRESH_TIME),
+      ]);
+
+      // replay the row fade-in animation with the fresh data
+      setRefreshKey((previous) => previous + 1);
+
+      if (ok) {
+        toast.success("Suppliers refreshed successfully.", {
+          toastId: "suppliers-refreshed",
+        });
+      }
+    } finally {
+      // always runs, so the button can never get stuck on "Refreshing..."
+      setRefreshing(false);
+    }
+  };
+
+
+  // ==================================================
+  // SEARCH
+  // ==================================================
+
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const value = search.toLowerCase().trim();
+
+    if (!value) {
+      return true;
+    }
+
+    return (
+      supplier.name?.toLowerCase().includes(value) ||
+      supplier.email?.toLowerCase().includes(value) ||
+      supplier.phone?.toLowerCase().includes(value) ||
+      supplier.address?.toLowerCase().includes(value) ||
+      String(supplier.id).toLowerCase().includes(value)
+    );
+  });
+
+
+  // ==================================================
+  // ADD / EDIT MODAL
+  // ==================================================
+
+  const openAdd = () => {
+    setError("");
+    setForm({ ...emptyForm });
+    setSelectedSupplier(null);
+    setModal("form");
+  };
 
   const openEdit = (supplier) => {
+    setError("");
+
     setSelectedSupplier(supplier);
 
     setForm({
@@ -177,166 +294,91 @@ const Suppliers = () => {
       address: supplier.address || "",
     });
 
-    setError("");
-
     setModal("form");
   };
 
 
-  // ==========================================================
-  // OPEN VIEW
-  // ==========================================================
+  // ==================================================
+  // VIEW SUPPLIER
+  // ==================================================
 
   const openView = async (supplier) => {
     try {
       setError("");
 
-      const response =
-        await getSupplierById(
-          supplier.id
-        );
-
-      const supplierData =
-        response?.data ||
-        response?.supplier ||
-        response ||
-        supplier;
+      const response = await getSupplierById(supplier.id);
 
       setSelectedSupplier(
-        supplierData
+        response?.data ||
+          response?.supplier ||
+          response ||
+          supplier
       );
 
       setModal("view");
     } catch (err) {
-      console.error(
-        "Get supplier error:",
-        err
-      );
+      console.error("Supplier details error:", err);
 
-      setSelectedSupplier(
-        supplier
-      );
-
+      setSelectedSupplier(supplier);
       setModal("view");
     }
   };
 
 
-  // ==========================================================
+  // ==================================================
   // CLOSE MODAL
-  // ==========================================================
+  // ==================================================
 
   const closeModal = () => {
-    if (saving) {
-      return;
+    if (!saving) {
+      setModal(null);
+      setSelectedSupplier(null);
+      setError("");
     }
-
-    setModal(null);
-
-    setSelectedSupplier(null);
-
-    setForm({
-      ...emptyForm,
-    });
-
-    setError("");
   };
 
 
-  // ==========================================================
-  // FORM CHANGE
-  // ==========================================================
-
-  const handleChange = (event) => {
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-
-  // ==========================================================
-  // SUBMIT
-  // ==========================================================
+  // ==================================================
+  // SUBMIT (CREATE / UPDATE)
+  // ==================================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // --------------------------------------------------------
-    // VALIDATION
-    // --------------------------------------------------------
-
     if (!form.name.trim()) {
-      toast.error(
-        "Supplier name is required."
-      );
-
+      toast.error("Supplier name is required.");
       return;
     }
 
     try {
       setSaving(true);
-
       setError("");
 
       const payload = {
         name: form.name.trim(),
-
-        email:
-          form.email.trim() || null,
-
-        phone:
-          form.phone.trim() || null,
-
-        address:
-          form.address.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
       };
 
-
-      // ------------------------------------------------------
-      // UPDATE
-      // ------------------------------------------------------
-
       if (selectedSupplier) {
-        await updateSupplier(
-          selectedSupplier.id,
-          payload
-        );
-
-        toast.success(
-          "Supplier updated successfully!"
-        );
+        await updateSupplier(selectedSupplier.id, payload);
+        toast.success("Supplier updated successfully!");
+      } else {
+        await createSupplier(payload);
+        toast.success("Supplier added successfully!");
       }
 
+      // close directly (saving is still true here,
+      // so closeModal() would refuse to run)
+      setModal(null);
+      setSelectedSupplier(null);
+      setForm({ ...emptyForm });
 
-      // ------------------------------------------------------
-      // CREATE
-      // ------------------------------------------------------
-
-      else {
-        await createSupplier(
-          payload
-        );
-
-        toast.success(
-          "Supplier added successfully!"
-        );
-      }
-
-
-      closeModal();
-
-      await loadSuppliers();
+      // silent reload -> no skeleton flash after saving
+      await reloadAndAnimate();
     } catch (err) {
-      console.error(
-        "Save supplier error:",
-        err
-      );
+      console.error("Save supplier error:", err);
 
       const message =
         err?.response?.data?.message ||
@@ -344,7 +386,6 @@ const Suppliers = () => {
         "Unable to save supplier.";
 
       setError(message);
-
       toast.error(message);
     } finally {
       setSaving(false);
@@ -352,39 +393,29 @@ const Suppliers = () => {
   };
 
 
-  // ==========================================================
-  // DELETE
-  // ==========================================================
+  // ==================================================
+  // DELETE SUPPLIER
+  // ==================================================
 
-  const handleDelete = async (
-    supplier
-  ) => {
-    const confirmed =
-      window.confirm(
+  const handleDelete = async (supplier) => {
+    if (
+      !window.confirm(
         `Delete "${supplier.name}"?\n\nThis action cannot be undone.`
-      );
-
-    if (!confirmed) {
+      )
+    ) {
       return;
     }
 
     try {
       setError("");
 
-      await deleteSupplier(
-        supplier.id
-      );
+      await deleteSupplier(supplier.id);
 
-      toast.success(
-        "Supplier deleted successfully!"
-      );
+      toast.success("Supplier deleted successfully!");
 
-      await loadSuppliers();
+      await reloadAndAnimate();
     } catch (err) {
-      console.error(
-        "Delete supplier error:",
-        err
-      );
+      console.error("Delete supplier error:", err);
 
       const message =
         err?.response?.data?.message ||
@@ -392,47 +423,73 @@ const Suppliers = () => {
         "Unable to delete supplier.";
 
       setError(message);
-
       toast.error(message);
     }
   };
 
 
-  // ==========================================================
-  // REFRESH
-  // ==========================================================
-
-  const handleRefresh = async () => {
-    await loadSuppliers();
-
-    toast.success(
-      "Suppliers refreshed successfully."
-    );
-  };
-
-
-  // ==========================================================
-  // PAGE
-  // ==========================================================
+  // ==================================================
+  // UI
+  // ==================================================
 
   return (
-    <div className="w-full space-y-6">
+    <>
+      <style>
+        {`
+          @keyframes supplierPageFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
 
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
+          .supplier-page-fade-in {
+            animation: supplierPageFadeIn 0.35s ease-out;
+          }
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          @keyframes supplierProgress {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+          }
 
-        <div className="flex items-center gap-3">
+          .supplier-progress-bar {
+            animation: supplierProgress 1.1s ease-in-out infinite;
+          }
 
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
-            <Building2 className="h-5 w-5" />
-          </div>
+          @keyframes supplierRowIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+
+          .supplier-row-in {
+            animation: supplierRowIn 0.3s ease-out both;
+          }
+
+          @keyframes supplierOverlayIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
+
+          .supplier-overlay-in {
+            animation: supplierOverlayIn 0.2s ease-out;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .supplier-page-fade-in,
+            .supplier-progress-bar,
+            .supplier-row-in,
+            .supplier-overlay-in {
+              animation: none;
+            }
+          }
+        `}
+      </style>
+
+      <div className="supplier-page-fade-in w-full space-y-6">
+
+        {/* PAGE HEADER */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
           <div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold text-slate-900">
               Suppliers
             </h1>
 
@@ -440,402 +497,199 @@ const Suppliers = () => {
               Manage your suppliers and supplier information.
             </p>
 
+            {lastUpdated && (
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+                <Clock className="h-3 w-3" />
+                Last updated at {formatTime(lastUpdated)}
+              </p>
+            )}
           </div>
 
+          <div className="flex gap-2">
+
+            {/* REFRESH */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+              className="flex min-w-[130px] items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading || refreshing ? "animate-spin" : ""}`}
+              />
+
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+
+            {/* ADD SUPPLIER */}
+            <button
+              type="button"
+              onClick={openAdd}
+              className="flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+            >
+              <Plus className="h-4 w-4" />
+
+              Add Supplier
+            </button>
+
+          </div>
         </div>
 
+        {/* ERROR (hidden while the form modal is open;
+            the modal shows its own error) */}
+        {error && modal !== "form" && (
+          <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
 
-        <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="
-              inline-flex
-              items-center
-              gap-2
-              rounded-lg
-              border
-              border-slate-300
-              bg-white
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-slate-700
-              shadow-sm
-              transition
-              hover:bg-slate-50
-            "
-          >
-            <RefreshCw className="h-4 w-4" />
+            <span>{error}</span>
 
-            Refresh
-          </button>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="ml-auto rounded-md p-1 transition hover:bg-red-100"
+              aria-label="Dismiss error"
+            >
+              <X className="h-4 w-4" />
+            </button>
 
+          </div>
+        )}
 
-          <button
-            type="button"
-            onClick={openAdd}
-            className="
-              inline-flex
-              items-center
-              gap-2
-              rounded-lg
-              bg-slate-950
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-slate-800
-            "
-          >
-            <Plus className="h-4 w-4" />
+        {/* SEARCH */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="relative">
 
-            Add Supplier
-          </button>
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
+            <input
+              type="text"
+              placeholder="Search supplier, email, phone..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            />
+
+          </div>
         </div>
 
-      </div>
+        {/* SUPPLIERS TABLE */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
+          {/* TOP PROGRESS BAR (while refreshing) */}
+          {refreshing && (
+            <div className="absolute left-0 top-0 z-20 h-0.5 w-full overflow-hidden bg-slate-100">
+              <div className="supplier-progress-bar h-full w-1/4 rounded-full bg-slate-900" />
+            </div>
+          )}
 
-      {/* ======================================================
-          SEARCH
-      ====================================================== */}
+          {/* FLOATING "REFRESHING" PILL (same as Sales.jsx) */}
+          {refreshing && (
+            <div className="supplier-overlay-in pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-24 backdrop-blur-[1px]">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-lg">
+                <RefreshCw className="h-4 w-4 animate-spin text-slate-900" />
+              </div>
+            </div>
+          )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          {/* SKELETON ONLY ON FIRST LOAD */}
+          {loading ? (
 
-        <div className="relative max-w-md">
+            <SupplierTableSkeleton />
 
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          ) : filteredSuppliers.length === 0 ? (
 
-          <input
-            type="text"
-            value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
-            placeholder="Search supplier, email, phone..."
-            className="
-              w-full
-              rounded-lg
-              border
-              border-slate-300
-              bg-white
-              py-2.5
-              pl-10
-              pr-4
-              text-sm
-              text-slate-900
-              outline-none
-              transition
-              placeholder:text-slate-400
-              focus:border-slate-500
-              focus:ring-2
-              focus:ring-slate-200
-            "
-          />
+            <div className="py-16 text-center">
 
-        </div>
+              <Building2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
 
-      </div>
+              <p className="font-medium text-slate-700">
+                No suppliers found.
+              </p>
 
-
-      {/* ======================================================
-          ERROR
-      ====================================================== */}
-
-      {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-
-          <X className="mt-0.5 h-5 w-5 shrink-0" />
-
-          <span>{error}</span>
-
-        </div>
-      )}
-
-
-      {/* ======================================================
-          TABLE
-      ====================================================== */}
-
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-        {loading ? (
-
-          <div className="flex min-h-[300px] items-center justify-center">
-
-            <div className="flex items-center gap-3 text-sm text-slate-500">
-
-              <RefreshCw className="h-5 w-5 animate-spin" />
-
-              Loading suppliers...
+              <p className="mt-1 text-sm text-slate-400">
+                {search.trim()
+                  ? "Try a different supplier name, email or phone."
+                  : "Add your first supplier to get started."}
+              </p>
 
             </div>
 
-          </div>
+          ) : (
 
-        ) : filteredSuppliers.length === 0 ? (
+            <div
+              className={`overflow-x-auto transition-opacity duration-200 ${
+                refreshing ? "opacity-70" : "opacity-100"
+              }`}
+            >
 
-          <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
+              <table className="w-full min-w-[950px] text-left text-sm">
 
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                <SupplierTableHead />
 
-              <Building2 className="h-6 w-6 text-slate-400" />
+                <tbody className="divide-y divide-slate-100">
 
-            </div>
-
-            <h3 className="text-base font-semibold text-slate-900">
-              No suppliers found
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Add your first supplier to get started.
-            </p>
-
-          </div>
-
-        ) : (
-
-          <div className="overflow-x-auto">
-
-            <table className="min-w-full">
-
-              <thead className="border-b border-slate-200 bg-slate-50">
-
-                <tr>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Supplier
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Email
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Phone
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Address
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
-                  </th>
-
-                  <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Actions
-                  </th>
-
-                </tr>
-
-              </thead>
-
-
-              <tbody className="divide-y divide-slate-100">
-
-                {filteredSuppliers.map(
-                  (supplier) => (
-
+                  {filteredSuppliers.map((supplier, index) => (
                     <tr
-                      key={supplier.id}
-                      className="transition hover:bg-slate-50"
+                      key={`${supplier.id}-${refreshKey}`}
+                      className="supplier-row-in transition hover:bg-slate-50"
+                      style={{
+                        animationDelay: `${Math.min(index, 12) * 30}ms`,
+                      }}
                     >
 
-                      {/* SUPPLIER */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
-
-                            <Building2 className="h-4 w-4 text-slate-600" />
-
-                          </div>
-
-                          <div>
-
-                            <div className="font-semibold text-slate-900">
-                              {supplier.name ||
-                                "-"}
-                            </div>
-
-                            <div className="mt-1 text-xs text-slate-400">
-                              ID #{supplier.id}
-                            </div>
-
-                          </div>
-
-                        </div>
-
+                      <td className="px-5 py-4 font-semibold text-slate-900">
+                        {supplier.name || supplier.id}
                       </td>
 
-
-                      {/* EMAIL */}
-
-                      <td className="px-5 py-4">
-
-                        {supplier.email ? (
-
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-
-                            <Mail className="h-4 w-4 text-slate-400" />
-
-                            {supplier.email}
-
-                          </div>
-
-                        ) : (
-
-                          <span className="text-sm text-slate-400">
-                            —
-                          </span>
-
-                        )}
-
+                      <td className="px-5 py-4 text-slate-700">
+                        {supplier.email || "-"}
                       </td>
 
-
-                      {/* PHONE */}
-
-                      <td className="px-5 py-4">
-
-                        {supplier.phone ? (
-
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-
-                            <Phone className="h-4 w-4 text-slate-400" />
-
-                            {supplier.phone}
-
-                          </div>
-
-                        ) : (
-
-                          <span className="text-sm text-slate-400">
-                            —
-                          </span>
-
-                        )}
-
+                      <td className="px-5 py-4 text-slate-600">
+                        {supplier.phone || "-"}
                       </td>
 
-
-                      {/* ADDRESS */}
-
-                      <td className="max-w-xs px-5 py-4">
-
-                        {supplier.address ? (
-
-                          <div className="flex items-start gap-2 text-sm text-slate-600">
-
-                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-
-                            <span className="truncate">
-                              {supplier.address}
-                            </span>
-
-                          </div>
-
-                        ) : (
-
-                          <span className="text-sm text-slate-400">
-                            —
-                          </span>
-
-                        )}
-
+                      <td className="max-w-xs truncate px-5 py-4 text-slate-600">
+                        {supplier.address || "-"}
                       </td>
 
-
-                      {/* CREATED */}
-
-                      <td className="px-5 py-4 text-sm text-slate-500">
-
+                      <td className="px-5 py-4 text-slate-500">
                         {supplier.createdAt
-                          ? new Date(
-                              supplier.createdAt
-                            ).toLocaleDateString(
-                              "en-IN"
-                            )
+                          ? new Date(supplier.createdAt).toLocaleDateString("en-IN")
                           : "-"}
-
                       </td>
-
-
-                      {/* ACTIONS */}
 
                       <td className="px-5 py-4">
 
-                        <div className="flex justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
 
                           <button
                             type="button"
-                            onClick={() =>
-                              openView(
-                                supplier
-                              )
-                            }
-                            title="View supplier"
-                            className="
-                              rounded-lg
-                              p-2
-                              text-slate-500
-                              transition
-                              hover:bg-slate-100
-                              hover:text-slate-900
-                            "
+                            onClick={() => openView(supplier)}
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                            title="View Supplier"
+                            aria-label="View supplier"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
 
-
                           <button
                             type="button"
-                            onClick={() =>
-                              openEdit(
-                                supplier
-                              )
-                            }
-                            title="Edit supplier"
-                            className="
-                              rounded-lg
-                              p-2
-                              text-slate-500
-                              transition
-                              hover:bg-slate-100
-                              hover:text-slate-900
-                            "
+                            onClick={() => openEdit(supplier)}
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                            title="Edit Supplier"
+                            aria-label="Edit supplier"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
 
-
                           <button
                             type="button"
-                            onClick={() =>
-                              handleDelete(
-                                supplier
-                              )
-                            }
-                            title="Delete supplier"
-                            className="
-                              rounded-lg
-                              p-2
-                              text-red-500
-                              transition
-                              hover:bg-red-50
-                            "
+                            onClick={() => handleDelete(supplier)}
+                            className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                            title="Delete Supplier"
+                            aria-label="Delete supplier"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -845,711 +699,313 @@ const Suppliers = () => {
                       </td>
 
                     </tr>
+                  ))}
 
-                  )
-                )}
+                </tbody>
 
-              </tbody>
-
-            </table>
-
-          </div>
-
-        )}
-
-      </div>
-
-
-      {/* ======================================================
-          ADD / EDIT SUPPLIER MODAL
-          SAME SIZE AS PRODUCT / PURCHASE MODAL
-      ====================================================== */}
-
-      {modal === "form" && (
-
-        <div
-          className="
-            fixed
-            bottom-0
-            right-0
-            top-16
-            z-[200]
-            flex
-            items-center
-            justify-center
-            bg-slate-950/50
-            p-4
-            sm:p-6
-            backdrop-blur-[2px]
-            transition-[left]
-            duration-300
-            ease-in-out
-          "
-          style={{
-            left:
-              "var(--sidebar-width, 0px)",
-          }}
-        >
-
-          <div
-            className="
-              flex
-              max-h-[calc(100vh-112px)]
-              w-full
-              max-w-4xl
-              flex-col
-              overflow-hidden
-              rounded-2xl
-              bg-white
-              shadow-2xl
-              ring-1
-              ring-black/5
-            "
-          >
-
-            {/* HEADER */}
-
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
-
-              <div>
-
-                <h2 className="text-xl font-bold text-slate-900">
-
-                  {selectedSupplier
-                    ? "Edit Supplier"
-                    : "Add Supplier"}
-
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-
-                  {selectedSupplier
-                    ? "Update supplier information."
-                    : "Add a new supplier to your inventory system."}
-
-                </p>
-
-              </div>
-
-
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={saving}
-                className="
-                  rounded-lg
-                  p-2
-                  text-slate-500
-                  transition
-                  hover:bg-slate-100
-                  hover:text-slate-900
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
-              >
-                <X className="h-5 w-5" />
-              </button>
+              </table>
 
             </div>
 
-
-            {/* BODY */}
-
-            <form
-              onSubmit={handleSubmit}
-              className="min-h-0 flex-1 overflow-y-auto"
-            >
-
-              <div className="space-y-6 px-6 py-6">
-
-                {/* SUPPLIER INFORMATION */}
-
-                <div>
-
-                  <div className="mb-5">
-
-                    <h3 className="text-sm font-bold text-slate-900">
-                      Supplier Information
-                    </h3>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Enter the supplier's contact and address details.
-                    </p>
-
-                  </div>
-
-
-                  <div className="grid gap-5 sm:grid-cols-2">
-
-                    {/* NAME */}
-
-                    <div className="sm:col-span-2">
-
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
-                        Supplier Name
-                        <span className="ml-1 text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <input
-                        type="text"
-                        name="name"
-                        value={form.name}
-                        onChange={handleChange}
-                        placeholder="Enter supplier name"
-                        autoFocus
-                        className="
-                          w-full
-                          rounded-lg
-                          border
-                          border-slate-300
-                          bg-white
-                          px-3.5
-                          py-2.5
-                          text-sm
-                          text-slate-900
-                          outline-none
-                          transition
-                          placeholder:text-slate-400
-                          focus:border-slate-500
-                          focus:ring-2
-                          focus:ring-slate-200
-                        "
-                      />
-
-                    </div>
-
-
-                    {/* EMAIL */}
-
-                    <div>
-
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
-                        Email
-                      </label>
-
-                      <div className="relative">
-
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                          type="email"
-                          name="email"
-                          value={form.email}
-                          onChange={handleChange}
-                          placeholder="supplier@example.com"
-                          className="
-                            w-full
-                            rounded-lg
-                            border
-                            border-slate-300
-                            bg-white
-                            py-2.5
-                            pl-10
-                            pr-3.5
-                            text-sm
-                            text-slate-900
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-slate-500
-                            focus:ring-2
-                            focus:ring-slate-200
-                          "
-                        />
-
-                      </div>
-
-                    </div>
-
-
-                    {/* PHONE */}
-
-                    <div>
-
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
-                        Phone
-                      </label>
-
-                      <div className="relative">
-
-                        <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                          type="text"
-                          name="phone"
-                          value={form.phone}
-                          onChange={handleChange}
-                          placeholder="+91 9876543210"
-                          className="
-                            w-full
-                            rounded-lg
-                            border
-                            border-slate-300
-                            bg-white
-                            py-2.5
-                            pl-10
-                            pr-3.5
-                            text-sm
-                            text-slate-900
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-slate-500
-                            focus:ring-2
-                            focus:ring-slate-200
-                          "
-                        />
-
-                      </div>
-
-                    </div>
-
-
-                    {/* ADDRESS */}
-
-                    <div className="sm:col-span-2">
-
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
-                        Address
-                      </label>
-
-                      <div className="relative">
-
-                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-
-                        <textarea
-                          name="address"
-                          value={form.address}
-                          onChange={handleChange}
-                          rows={4}
-                          placeholder="Enter supplier address"
-                          className="
-                            w-full
-                            resize-none
-                            rounded-lg
-                            border
-                            border-slate-300
-                            bg-white
-                            py-2.5
-                            pl-10
-                            pr-3.5
-                            text-sm
-                            text-slate-900
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-slate-500
-                            focus:ring-2
-                            focus:ring-slate-200
-                          "
-                        />
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-
-                {/* INFORMATION BOX */}
-
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                  <div className="flex gap-3">
-
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
-
-                      <Building2 className="h-4 w-4" />
-
-                    </div>
-
-                    <div>
-
-                      <p className="text-sm font-semibold text-slate-800">
-                        Supplier Information
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Supplier details can be used when creating purchase orders and tracking your inventory purchases.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              {/* FOOTER */}
-
-              <div
-                className="
-                  sticky
-                  bottom-0
-                  flex
-                  shrink-0
-                  items-center
-                  justify-end
-                  gap-3
-                  border-t
-                  border-slate-200
-                  bg-white
-                  px-6
-                  py-4
-                "
-              >
-
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={saving}
-                  className="
-                    rounded-lg
-                    border
-                    border-slate-300
-                    bg-white
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-slate-700
-                    transition
-                    hover:bg-slate-50
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
-                >
-                  Cancel
-                </button>
-
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="
-                    rounded-lg
-                    bg-slate-950
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    shadow-sm
-                    transition
-                    hover:bg-slate-800
-                    disabled:cursor-not-allowed
-                    disabled:opacity-60
-                  "
-                >
-
-                  {saving
-                    ? "Saving..."
-                    : selectedSupplier
-                    ? "Update Supplier"
-                    : "Add Supplier"}
-
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
+          )}
 
         </div>
 
-      )}
+        {/* ==================================================
+            ADD / EDIT SUPPLIER MODAL
+        ================================================== */}
 
-
-      {/* ======================================================
-          VIEW SUPPLIER MODAL
-      ====================================================== */}
-
-      {modal === "view" &&
-        selectedSupplier && (
-
+        {modal === "form" && (
           <div
-            className="
-              fixed
-              bottom-0
-              right-0
-              top-16
-              z-[200]
-              flex
-              items-center
-              justify-center
-              bg-slate-950/50
-              p-4
-              sm:p-6
-              backdrop-blur-[2px]
-              transition-[left]
-              duration-300
-              ease-in-out
-            "
+            className="fixed bottom-0 right-0 top-16 z-[200] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px] transition-[left] duration-300 ease-in-out sm:p-6"
             style={{
-              left:
-                "var(--sidebar-width, 0px)",
+              left: "var(--sidebar-width, 0px)",
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeModal();
             }}
           >
 
-            <div
-              className="
-                flex
-                max-h-[calc(100vh-112px)]
-                w-full
-                max-w-4xl
-                flex-col
-                overflow-hidden
-                rounded-2xl
-                bg-white
-                shadow-2xl
-                ring-1
-                ring-black/5
-              "
-            >
+            <div className="flex max-h-[calc(100vh-112px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
 
               {/* HEADER */}
-
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
 
                 <div>
-
-                  <h2 className="text-xl font-bold text-slate-900">
-                    Supplier Details
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {selectedSupplier ? "Edit Supplier" : "Add Supplier"}
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    View supplier information.
+                    {selectedSupplier
+                      ? "Update supplier information."
+                      : "Add a new supplier to your inventory system."}
                   </p>
-
                 </div>
-
 
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="
-                    rounded-lg
-                    p-2
-                    text-slate-500
-                    transition
-                    hover:bg-slate-100
-                    hover:text-slate-900
-                  "
+                  disabled={saving}
+                  className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Close"
                 >
                   <X className="h-5 w-5" />
                 </button>
 
               </div>
 
+              {/* BODY */}
+              <form
+                onSubmit={handleSubmit}
+                className="min-h-0 flex-1 overflow-y-auto"
+              >
+
+                <div className="space-y-6 px-6 py-6">
+
+                  {/* ERROR INSIDE MODAL */}
+                  {error && (
+                    <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* NAME */}
+                  <div>
+
+                    <label
+                      htmlFor="supplier-name"
+                      className="mb-2 block text-sm font-semibold text-slate-700"
+                    >
+                      Supplier Name
+                    </label>
+
+                    <input
+                      id="supplier-name"
+                      value={form.name}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          name: event.target.value,
+                        })
+                      }
+                      placeholder="Enter supplier name"
+                      autoFocus
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                    />
+
+                  </div>
+
+                  {/* EMAIL & PHONE */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+
+                    <div>
+
+                      <label
+                        htmlFor="supplier-email"
+                        className="mb-2 block text-sm font-semibold text-slate-700"
+                      >
+                        Email
+                      </label>
+
+                      <input
+                        id="supplier-email"
+                        type="email"
+                        placeholder="supplier@example.com"
+                        value={form.email}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            email: event.target.value,
+                          })
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                      />
+
+                    </div>
+
+                    <div>
+
+                      <label
+                        htmlFor="supplier-phone"
+                        className="mb-2 block text-sm font-semibold text-slate-700"
+                      >
+                        Phone
+                      </label>
+
+                      <input
+                        id="supplier-phone"
+                        type="text"
+                        placeholder="+91 9876543210"
+                        value={form.phone}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            phone: event.target.value,
+                          })
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                      />
+
+                    </div>
+
+                  </div>
+
+                  {/* ADDRESS */}
+                  <div>
+
+                    <label
+                      htmlFor="supplier-address"
+                      className="mb-2 block text-sm font-semibold text-slate-700"
+                    >
+                      Address
+                    </label>
+
+                    <textarea
+                      id="supplier-address"
+                      rows={4}
+                      placeholder="Enter supplier address"
+                      value={form.address}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          address: event.target.value,
+                        })
+                      }
+                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* FOOTER */}
+                <div className="sticky bottom-0 flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    disabled={saving}
+                    className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {saving && <RefreshCw className="h-4 w-4 animate-spin" />}
+
+                    {saving
+                      ? "Saving..."
+                      : selectedSupplier
+                      ? "Update Supplier"
+                      : "Add Supplier"}
+                  </button>
+
+                </div>
+
+              </form>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ==================================================
+            VIEW SUPPLIER MODAL
+        ================================================== */}
+
+        {modal === "view" && selectedSupplier && (
+          <div
+            className="fixed bottom-0 right-0 top-16 z-[200] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px] transition-[left] duration-300 ease-in-out sm:p-6"
+            style={{
+              left: "var(--sidebar-width, 0px)",
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeModal();
+            }}
+          >
+
+            <div className="flex max-h-[calc(100vh-112px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+
+              {/* HEADER */}
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Supplier Details
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    View supplier information.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+              </div>
 
               {/* BODY */}
-
               <div className="min-h-0 flex-1 overflow-y-auto">
 
                 <div className="space-y-6 px-6 py-6">
 
-                  {/* SUPPLIER HEADER CARD */}
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-
-                    <div className="flex items-center gap-4">
-
-                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-950 text-white">
-
-                        <Building2 className="h-7 w-7" />
-
-                      </div>
-
-                      <div>
-
-                        <h3 className="text-xl font-bold text-slate-900">
-                          {selectedSupplier.name ||
-                            "-"}
-                        </h3>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Supplier ID #
-                          {selectedSupplier.id}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-
-                  {/* DETAILS */}
-
-                  <div>
-
-                    <h3 className="mb-4 text-sm font-bold text-slate-900">
-                      Contact Information
-                    </h3>
-
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-
-                      {/* EMAIL */}
-
-                      <div className="rounded-xl border border-slate-200 p-5">
-
-                        <div className="flex items-start gap-3">
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-
-                            <Mail className="h-5 w-5 text-slate-600" />
-
-                          </div>
-
-                          <div className="min-w-0">
-
-                            <p className="text-xs font-medium text-slate-500">
-                              Email
-                            </p>
-
-                            <p className="mt-1 break-all text-sm font-semibold text-slate-900">
-
-                              {selectedSupplier.email ||
-                                "Not provided"}
-
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-
-                      {/* PHONE */}
-
-                      <div className="rounded-xl border border-slate-200 p-5">
-
-                        <div className="flex items-start gap-3">
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-
-                            <Phone className="h-5 w-5 text-slate-600" />
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-xs font-medium text-slate-500">
-                              Phone
-                            </p>
-
-                            <p className="mt-1 text-sm font-semibold text-slate-900">
-
-                              {selectedSupplier.phone ||
-                                "Not provided"}
-
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-
-                      {/* ADDRESS */}
-
-                      <div className="rounded-xl border border-slate-200 p-5 sm:col-span-2">
-
-                        <div className="flex items-start gap-3">
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-
-                            <MapPin className="h-5 w-5 text-slate-600" />
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-xs font-medium text-slate-500">
-                              Address
-                            </p>
-
-                            <p className="mt-1 text-sm font-semibold leading-6 text-slate-900">
-
-                              {selectedSupplier.address ||
-                                "Not provided"}
-
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-
-                  {/* DATES */}
-
-                  <div>
-
-                    <h3 className="mb-4 text-sm font-bold text-slate-900">
-                      Record Information
-                    </h3>
-
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                        <p className="text-xs font-medium text-slate-500">
-                          Created
-                        </p>
-
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-
-                          {selectedSupplier.createdAt
-                            ? new Date(
-                                selectedSupplier.createdAt
-                              ).toLocaleString(
-                                "en-IN"
-                              )
-                            : "-"}
-
-                        </p>
-
-                      </div>
-
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                        <p className="text-xs font-medium text-slate-500">
-                          Last Updated
-                        </p>
-
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-
-                          {selectedSupplier.updatedAt
-                            ? new Date(
-                                selectedSupplier.updatedAt
-                              ).toLocaleString(
-                                "en-IN"
-                              )
-                            : "-"}
-
-                        </p>
-
-                      </div>
-
-                    </div>
+                  {/* SUPPLIER INFORMATION */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+
+                    <Info
+                      label="Supplier Name"
+                      value={selectedSupplier.name}
+                    />
+
+                    <Info
+                      label="Supplier ID"
+                      value={`#${selectedSupplier.id}`}
+                    />
+
+                    <Info
+                      label="Email"
+                      value={selectedSupplier.email || "Not provided"}
+                    />
+
+                    <Info
+                      label="Phone"
+                      value={selectedSupplier.phone || "Not provided"}
+                    />
+
+                    <Info
+                      label="Address"
+                      value={selectedSupplier.address || "Not provided"}
+                    />
+
+                    <Info
+                      label="Created"
+                      value={
+                        selectedSupplier.createdAt
+                          ? new Date(selectedSupplier.createdAt).toLocaleString("en-IN")
+                          : "-"
+                      }
+                    />
+
+                    <Info
+                      label="Last Updated"
+                      value={
+                        selectedSupplier.updatedAt
+                          ? new Date(selectedSupplier.updatedAt).toLocaleString("en-IN")
+                          : "-"
+                      }
+                    />
 
                   </div>
 
@@ -1557,40 +1013,13 @@ const Suppliers = () => {
 
               </div>
 
-
               {/* FOOTER */}
-
-              <div
-                className="
-                  sticky
-                  bottom-0
-                  flex
-                  shrink-0
-                  items-center
-                  justify-end
-                  gap-3
-                  border-t
-                  border-slate-200
-                  bg-white
-                  px-6
-                  py-4
-                "
-              >
+              <div className="sticky bottom-0 flex shrink-0 justify-end border-t border-slate-200 bg-white px-6 py-4">
 
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="
-                    rounded-lg
-                    bg-slate-950
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-slate-800
-                  "
+                  className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Close
                 </button>
@@ -1600,11 +1029,30 @@ const Suppliers = () => {
             </div>
 
           </div>
-
         )}
 
-    </div>
+      </div>
+    </>
   );
 };
+
+
+// ==================================================
+// INFO COMPONENT
+// ==================================================
+
+const Info = ({ label, value }) => (
+  <div className="rounded-xl bg-slate-50 p-4">
+
+    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+      {label}
+    </p>
+
+    <p className="mt-1 break-words font-semibold text-slate-800">
+      {value || "-"}
+    </p>
+
+  </div>
+);
 
 export default Suppliers;

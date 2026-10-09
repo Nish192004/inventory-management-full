@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft, Loader2 } from "lucide-react";
 import { forgotPassword } from "../../services/authService";
 
 const ForgotPassword = () => {
@@ -34,130 +34,32 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div
-      className="
-        flex
-        min-h-screen
-        w-full
-        items-center
-        justify-center
-        bg-gradient-to-br
-        from-blue-50
-        via-white
-        to-indigo-100
-        px-3
-        py-6
-        sm:px-4
-        sm:py-8
-      "
-    >
-      <div
-        className="
-          w-full
-          max-w-md
-          rounded-2xl
-          bg-white
-          p-5
-          shadow-2xl
-          sm:rounded-3xl
-          sm:p-8
-          md:p-10
-        "
-      >
-        {/* Header */}
-        <div className="mb-6 text-center sm:mb-8">
-          <div
-            className="
-              mx-auto
-              mb-4
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-2xl
-              bg-blue-600
-              text-white
-              sm:mb-5
-              sm:h-14
-              sm:w-14
-            "
-          >
-            <Mail
-              size={24}
-              className="sm:h-[26px] sm:w-[26px]"
-            />
-          </div>
+    <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4 py-6">
 
-          <h1
-            className="
-              text-2xl
-              font-bold
-              text-gray-900
-              sm:text-3xl
-            "
-          >
-            Forgot Password?
+      {/* Card */}
+      <div className="w-full max-w-[400px] rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-slate-900">
+            Forgot password?
           </h1>
 
-          <p
-            className="
-              mx-auto
-              mt-2
-              max-w-sm
-              text-sm
-              leading-5
-              text-gray-500
-              sm:text-base
-              sm:leading-6
-            "
-          >
+          <p className="mt-1.5 text-sm leading-6 text-slate-500">
             Enter your email and we'll help you reset your password.
           </p>
         </div>
 
         {/* Error */}
         {error && (
-          <div
-            className="
-              mb-4
-              rounded-xl
-              border
-              border-red-200
-              bg-red-50
-              px-3
-              py-3
-              text-xs
-              leading-5
-              text-red-600
-              sm:mb-5
-              sm:px-4
-              sm:text-sm
-            "
-          >
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {/* Success */}
         {message && (
-          <div
-            className="
-              mb-4
-              rounded-xl
-              border
-              border-green-200
-              bg-green-50
-              px-3
-              py-3
-              text-xs
-              leading-5
-              text-green-700
-              sm:mb-5
-              sm:px-4
-              sm:text-sm
-            "
-          >
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-700">
             {message}
           </div>
         )}
@@ -166,29 +68,15 @@ const ForgotPassword = () => {
         <form onSubmit={handleSubmit}>
           <label
             htmlFor="email"
-            className="
-              mb-2
-              block
-              text-xs
-              font-semibold
-              text-gray-700
-              sm:text-sm
-            "
+            className="mb-1.5 block text-sm font-medium text-slate-700"
           >
-            Email Address
+            Email address
           </label>
 
-          <div className="relative mb-5 sm:mb-6">
+          <div className="relative mb-5">
             <Mail
-              size={18}
-              className="
-                absolute
-                left-3.5
-                top-1/2
-                -translate-y-1/2
-                text-gray-400
-                sm:left-4
-              "
+              size={17}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
 
             <input
@@ -198,69 +86,30 @@ const ForgotPassword = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-300
-                py-3
-                pl-10
-                pr-3
-                text-sm
-                outline-none
-                transition
-                focus:border-blue-500
-                focus:ring-4
-                focus:ring-blue-100
-                sm:py-3.5
-                sm:pl-11
-                sm:pr-4
-              "
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="
-              w-full
-              rounded-xl
-              bg-blue-600
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              transition
-              hover:bg-blue-700
-              disabled:cursor-not-allowed
-              disabled:opacity-60
-              sm:py-3.5
-            "
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Sending..." : "Send Reset Link"}
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+
+            {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
 
-        {/* Back to Login */}
+        {/* Back to Login (inside the card) */}
         <Link
           to="/login"
-          className="
-            mt-6
-            flex
-            items-center
-            justify-center
-            gap-2
-            text-xs
-            font-semibold
-            text-blue-600
-            hover:text-blue-700
-            sm:mt-7
-            sm:text-sm
-          "
+          className="mt-5 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-900"
         >
           <ArrowLeft size={16} />
-          Back to Login
+          Back to sign in
         </Link>
+
       </div>
     </div>
   );

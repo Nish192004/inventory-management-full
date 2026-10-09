@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import {
   ArrowLeft,
   Package,
@@ -7,52 +8,58 @@ import {
   ShoppingCart,
   IndianRupee,
   RefreshCw,
-  AlertCircle,
+  AlertTriangle,
+  Clock,
+  X,
 } from "lucide-react";
+
+import { toast } from "react-toastify";
 
 import api from "../../services/api";
 
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+// Minimum time the refresh animation stays visible (ms)
+const MIN_REFRESH_TIME = 700;
+
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 const number = (value) => Number(value || 0);
 
-const formatCurrency = (value) => {
-  return `₹${number(value).toLocaleString("en-IN", {
+const formatCurrency = (value) =>
+  `₹${number(value).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-};
 
 const formatDate = (value) => {
   if (!value) return "-";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
+  if (Number.isNaN(date.getTime())) return "-";
 
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString("en-IN");
 };
 
+const formatTime = (date) =>
+  date
+    ? date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "";
+
 const getPageType = (pathname) => {
-  if (pathname.includes("/dashboard/products")) {
-    return "products";
-  }
-
-  if (pathname.includes("/dashboard/stock")) {
-    return "stock";
-  }
-
-  if (pathname.includes("/dashboard/sales")) {
-    return "sales";
-  }
-
-  if (pathname.includes("/dashboard/revenue")) {
-    return "revenue";
-  }
+  if (pathname.includes("/dashboard/products")) return "products";
+  if (pathname.includes("/dashboard/stock")) return "stock";
+  if (pathname.includes("/dashboard/sales")) return "sales";
+  if (pathname.includes("/dashboard/revenue")) return "revenue";
 
   return "products";
 };
@@ -62,26 +69,269 @@ const PAGE_CONFIG = {
     title: "Products Details",
     description: "View all products currently stored in the inventory.",
     icon: Package,
+    endpoint: "/dashboard/products",
+    emptyText: "No products found.",
+    headings: ["#", "Product", "SKU", "Quantity", "Price", "Status"],
   },
 
   stock: {
     title: "Stock Details",
     description: "View current inventory stock and stock levels.",
     icon: Boxes,
+    endpoint: "/dashboard/stock",
+    emptyText: "No stock records found.",
+    headings: ["#", "Product", "SKU", "Current Stock", "Minimum Stock", "Status"],
   },
 
   sales: {
     title: "Sales Details",
     description: "View completed sales recorded in the system.",
     icon: ShoppingCart,
+    endpoint: "/dashboard/sales-details",
+    emptyText: "No completed sales found.",
+    headings: ["#", "Invoice", "Customer", "Total", "Status", "Date"],
   },
 
   revenue: {
     title: "Revenue Details",
     description: "View revenue generated from completed sales.",
     icon: IndianRupee,
+    endpoint: "/dashboard/revenue-details",
+    emptyText: "No revenue records found.",
+    headings: ["#", "Invoice", "Revenue", "Status", "Date"],
   },
 };
+
+const getStockStatus = (product, healthyLabel) => {
+  const quantity = number(product.quantity ?? product.stock);
+  const minStock = number(product.minStock);
+
+  if (quantity === 0) return "Out of Stock";
+  if (minStock > 0 && quantity <= minStock) return "Low Stock";
+
+  return healthyLabel;
+};
+
+
+// ============================================================
+// STATUS BADGE (same classes as the status badge in Sales.jsx)
+// ============================================================
+
+const StatusBadge = ({ status }) => {
+  const normalized = String(status || "")
+    .toUpperCase()
+    .replaceAll("_", " ");
+
+  let classes = "bg-slate-100 text-slate-700";
+
+  if (
+    ["COMPLETED", "IN STOCK", "HEALTHY", "RECEIVED"].includes(normalized)
+  ) {
+    classes = "bg-emerald-100 text-emerald-700";
+  } else if (["LOW STOCK", "PENDING"].includes(normalized)) {
+    classes = "bg-amber-100 text-amber-700";
+  } else if (
+    ["OUT OF STOCK", "CANCELLED", "DAMAGE"].includes(normalized)
+  ) {
+    classes = "bg-red-100 text-red-700";
+  } else if (normalized === "REFUNDED") {
+    classes = "bg-purple-100 text-purple-700";
+  }
+
+  return (
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${classes}`}
+    >
+      {normalized || "UNKNOWN"}
+    </span>
+  );
+};
+
+
+// ============================================================
+// ROW CELLS (one renderer per page type)
+// ============================================================
+
+const ROW_CELLS = {
+  products: (product, index) => (
+    <>
+      <td className="px-5 py-4 text-slate-500">{index + 1}</td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {product.name || "-"}
+      </td>
+
+      <td className="px-5 py-4 text-slate-600">
+        {product.sku || "-"}
+      </td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {number(product.quantity ?? product.stock)}
+      </td>
+
+      <td className="px-5 py-4 text-slate-600">
+        {formatCurrency(product.price)}
+      </td>
+
+      <td className="px-5 py-4">
+        <StatusBadge status={getStockStatus(product, "In Stock")} />
+      </td>
+    </>
+  ),
+
+  stock: (product, index) => (
+    <>
+      <td className="px-5 py-4 text-slate-500">{index + 1}</td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {product.name || "-"}
+      </td>
+
+      <td className="px-5 py-4 text-slate-600">
+        {product.sku || "-"}
+      </td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {number(product.quantity ?? product.stock)}
+      </td>
+
+      <td className="px-5 py-4 text-slate-600">
+        {number(product.minStock)}
+      </td>
+
+      <td className="px-5 py-4">
+        <StatusBadge status={getStockStatus(product, "Healthy")} />
+      </td>
+    </>
+  ),
+
+  sales: (sale, index) => (
+    <>
+      <td className="px-5 py-4 text-slate-500">{index + 1}</td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {sale.invoiceNumber || `#${sale.id || "-"}`}
+      </td>
+
+      <td className="px-5 py-4 text-slate-700">
+        {sale.customerName || sale.customer?.name || "Walk-in Customer"}
+      </td>
+
+      <td className="px-5 py-4 font-bold text-slate-900">
+        {formatCurrency(sale.total)}
+      </td>
+
+      <td className="px-5 py-4">
+        <StatusBadge status={sale.status || "COMPLETED"} />
+      </td>
+
+      <td className="px-5 py-4 text-slate-500">
+        {formatDate(sale.createdAt)}
+      </td>
+    </>
+  ),
+
+  revenue: (sale, index) => (
+    <>
+      <td className="px-5 py-4 text-slate-500">{index + 1}</td>
+
+      <td className="px-5 py-4 font-semibold text-slate-900">
+        {sale.invoiceNumber || sale.invoice || `#${sale.id || "-"}`}
+      </td>
+
+      <td className="px-5 py-4 font-bold text-slate-900">
+        {formatCurrency(sale.total ?? sale.revenue ?? sale.amount)}
+      </td>
+
+      <td className="px-5 py-4">
+        <StatusBadge status={sale.status || "COMPLETED"} />
+      </td>
+
+      <td className="px-5 py-4 text-slate-500">
+        {formatDate(sale.createdAt || sale.date)}
+      </td>
+    </>
+  ),
+};
+
+
+// ============================================================
+// TABLE HEAD (shared by skeleton + real table)
+// ============================================================
+
+const DetailsTableHead = ({ headings }) => (
+  <thead className="border-b border-slate-200 bg-slate-50">
+    <tr>
+      {headings.map((heading) => (
+        <th
+          key={heading}
+          className="px-5 py-4 font-semibold text-slate-600"
+        >
+          {heading}
+        </th>
+      ))}
+    </tr>
+  </thead>
+);
+
+
+// ============================================================
+// DETAILS TABLE SKELETON (first load only)
+// ============================================================
+
+const DetailsTableSkeleton = ({ headings }) => {
+  const rows = Array.from({ length: 7 });
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[950px] text-left text-sm">
+
+        <DetailsTableHead headings={headings} />
+
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((_, index) => (
+            <tr key={index} className="animate-pulse">
+              {headings.map((heading, cellIndex) => (
+                <td key={heading} className="px-5 py-5">
+                  <div
+                    className={`h-4 rounded bg-slate-200 ${
+                      cellIndex === 0 ? "w-6" : "w-28"
+                    }`}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+
+      </table>
+    </div>
+  );
+};
+
+
+// ============================================================
+// INFO COMPONENT (same as Sales.jsx)
+// ============================================================
+
+const Info = ({ label, value }) => (
+  <div className="rounded-xl bg-slate-50 p-4">
+
+    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+      {label}
+    </p>
+
+    <p className="mt-1 break-words font-semibold text-slate-800">
+      {value || "-"}
+    </p>
+
+  </div>
+);
+
+
+// ============================================================
+// DASHBOARD DETAILS
+// ============================================================
 
 export default function DashboardDetails() {
   const location = useLocation();
@@ -94,41 +344,50 @@ export default function DashboardDetails() {
 
   const config = PAGE_CONFIG[pageType];
 
+  const Icon = config.icon;
+
   const [data, setData] = useState([]);
   const [summary, setSummary] = useState(null);
 
+  // first load (and page type change) -> skeleton
   const [loading, setLoading] = useState(true);
+
+  // manual refresh -> progress bar + overlay (table stays visible)
+  const [refreshing, setRefreshing] = useState(false);
+
+  // changes after every refresh so rows replay their fade-in animation
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [lastUpdated, setLastUpdated] = useState(null);
+
   const [error, setError] = useState("");
 
-  const loadDetails = async () => {
+  // ignores responses from an older page type / request
+  const requestId = useRef(0);
+
+
+  // ==================================================
+  // LOAD DETAILS
+  // silent = true  -> table stays on screen
+  // silent = false -> skeleton (first load only)
+  // returns true on success, false on failure
+  // ==================================================
+
+  const loadDetails = async ({ silent = false } = {}) => {
+    const currentRequest = ++requestId.current;
+
     try {
-      setLoading(true);
-      setError("");
-
-      let endpoint = "";
-
-      switch (pageType) {
-        case "products":
-          endpoint = "/dashboard/products";
-          break;
-
-        case "stock":
-          endpoint = "/dashboard/stock";
-          break;
-
-        case "sales":
-          endpoint = "/dashboard/sales-details";
-          break;
-
-        case "revenue":
-          endpoint = "/dashboard/revenue-details";
-          break;
-
-        default:
-          endpoint = "/dashboard/products";
+      if (!silent) {
+        setLoading(true);
       }
 
-      const response = await api.get(endpoint);
+      setError("");
+
+      const response = await api.get(config.endpoint);
+
+      if (currentRequest !== requestId.current) {
+        return false;
+      }
 
       const responseData = response?.data?.data ?? response?.data ?? {};
 
@@ -153,563 +412,329 @@ export default function DashboardDetails() {
             null
         );
       }
+
+      setLastUpdated(new Date());
+
+      return true;
+
     } catch (err) {
+      if (currentRequest !== requestId.current) {
+        return false;
+      }
+
       console.error("Dashboard details error:", err);
 
-      setData([]);
-      setSummary(null);
-
-      setError(
+      const message =
         err?.response?.data?.message ||
-          "Unable to load dashboard details."
-      );
+        err?.message ||
+        "Unable to load dashboard details.";
+
+      setError(message);
+      toast.error(message);
+
+      return false;
+
     } finally {
-      setLoading(false);
+      if (!silent && currentRequest === requestId.current) {
+        setLoading(false);
+      }
     }
   };
 
+  // reload with the skeleton whenever the page type changes
   useEffect(() => {
+    setData([]);
+    setSummary(null);
+    setLastUpdated(null);
+
     loadDetails();
   }, [pageType]);
 
-  const renderProducts = () => {
-    if (!data.length) {
-      return <EmptyState message="No products found." />;
+
+  // ==================================================
+  // REFRESH (smooth + clearly visible)
+  // ==================================================
+
+  const handleRefresh = async () => {
+    if (refreshing || loading) {
+      return;
     }
 
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                #
-              </th>
+    setRefreshing(true);
 
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Product
-              </th>
+    try {
+      // run the real reload AND a minimum delay together,
+      // so the animation is always visible even if the API is instant
+      const [ok] = await Promise.all([
+        loadDetails({ silent: true }),
+        wait(MIN_REFRESH_TIME),
+      ]);
 
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                SKU
-              </th>
+      // replay the row fade-in animation with the fresh data
+      setRefreshKey((previous) => previous + 1);
 
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Quantity
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Price
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Status
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((product, index) => {
-              const quantity = number(
-                product.quantity ?? product.stock
-              );
-
-              const minStock = number(product.minStock);
-
-              let status = "In Stock";
-
-              if (quantity === 0) {
-                status = "Out of Stock";
-              } else if (minStock > 0 && quantity <= minStock) {
-                status = "Low Stock";
-              }
-
-              return (
-                <tr
-                  key={product.id ?? index}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {index + 1}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">
-                      {product.name || "-"}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {product.sku || "-"}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {quantity}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatCurrency(product.price)}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <StatusBadge status={status} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderStock = () => {
-    if (!data.length) {
-      return <EmptyState message="No stock records found." />;
-    }
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                #
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Product
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                SKU
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Current Stock
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Minimum Stock
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Status
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((product, index) => {
-              const quantity = number(
-                product.quantity ?? product.stock
-              );
-
-              const minStock = number(product.minStock);
-
-              let status = "Healthy";
-
-              if (quantity === 0) {
-                status = "Out of Stock";
-              } else if (minStock > 0 && quantity <= minStock) {
-                status = "Low Stock";
-              }
-
-              return (
-                <tr
-                  key={product.id ?? index}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {index + 1}
-                  </td>
-
-                  <td className="px-6 py-4 font-medium text-gray-900">
-                    {product.name || "-"}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {product.sku || "-"}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    {quantity}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {minStock}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <StatusBadge status={status} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderSales = () => {
-    if (!data.length) {
-      return <EmptyState message="No completed sales found." />;
-    }
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                #
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Invoice
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Customer
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Total
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Status
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Date
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((sale, index) => (
-              <tr
-                key={sale.id ?? index}
-                className="border-b border-gray-100 hover:bg-gray-50"
-              >
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {index + 1}
-                </td>
-
-                <td className="px-6 py-4 font-medium text-gray-900">
-                  {sale.invoiceNumber || `#${sale.id || "-"}`}
-                </td>
-
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {sale.customerName ||
-                    sale.customer?.name ||
-                    "Walk-in Customer"}
-                </td>
-
-                <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                  {formatCurrency(sale.total)}
-                </td>
-
-                <td className="px-6 py-4">
-                  <StatusBadge
-                    status={sale.status || "COMPLETED"}
-                  />
-                </td>
-
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {formatDate(sale.createdAt)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderRevenue = () => {
-    if (!data.length) {
-      return <EmptyState message="No revenue records found." />;
-    }
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                #
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Invoice
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Revenue
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Status
-              </th>
-
-              <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                Date
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((sale, index) => (
-              <tr
-                key={sale.id ?? index}
-                className="border-b border-gray-100 hover:bg-gray-50"
-              >
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {index + 1}
-                </td>
-
-                <td className="px-6 py-4 font-medium text-gray-900">
-                  {sale.invoiceNumber ||
-                    sale.invoice ||
-                    `#${sale.id || "-"}`}
-                </td>
-
-                <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                  {formatCurrency(
-                    sale.total ?? sale.revenue ?? sale.amount
-                  )}
-                </td>
-
-                <td className="px-6 py-4">
-                  <StatusBadge
-                    status={sale.status || "COMPLETED"}
-                  />
-                </td>
-
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {formatDate(sale.createdAt || sale.date)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderContent = () => {
-    switch (pageType) {
-      case "products":
-        return renderProducts();
-
-      case "stock":
-        return renderStock();
-
-      case "sales":
-        return renderSales();
-
-      case "revenue":
-        return renderRevenue();
-
-      default:
-        return renderProducts();
+      if (ok) {
+        toast.success("Details refreshed successfully.", {
+          toastId: "dashboard-details-refreshed",
+        });
+      }
+    } finally {
+      // always runs, so the button can never get stuck on "Refreshing..."
+      setRefreshing(false);
     }
   };
 
-  const Icon = config.icon;
+
+  // ==================================================
+  // UI
+  // ==================================================
+
+  const summaryEntries = summary
+    ? Object.entries(summary).slice(0, 4)
+    : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
+    <>
+      <style>
+        {`
+          @keyframes detailsPageFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          .details-page-fade-in {
+            animation: detailsPageFadeIn 0.35s ease-out;
+          }
+
+          @keyframes detailsProgress {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+          }
+
+          .details-progress-bar {
+            animation: detailsProgress 1.1s ease-in-out infinite;
+          }
+
+          @keyframes detailsRowIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+
+          .details-row-in {
+            animation: detailsRowIn 0.3s ease-out both;
+          }
+
+          @keyframes detailsOverlayIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
+
+          .details-overlay-in {
+            animation: detailsOverlayIn 0.2s ease-out;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .details-page-fade-in,
+            .details-progress-bar,
+            .details-row-in,
+            .details-overlay-in {
+              animation: none;
+            }
+          }
+        `}
+      </style>
+
+      <div className="details-page-fade-in w-full space-y-6">
+
+        {/* PAGE HEADER */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+
+          <div className="flex items-start gap-3">
+
+            {/* BACK */}
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-100"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
               title="Back to Dashboard"
+              aria-label="Back to dashboard"
             >
-              <ArrowLeft size={19} />
+              <ArrowLeft className="h-4 w-4" />
             </button>
 
             <div>
-              <div className="flex items-center gap-2">
-                <Icon size={22} className="text-gray-700" />
+              <h1 className="text-2xl font-bold text-slate-900">
+                {config.title}
+              </h1>
 
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {config.title}
-                </h1>
-              </div>
-
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-slate-500">
                 {config.description}
               </p>
+
+              {lastUpdated && (
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+                  <Clock className="h-3 w-3" />
+                  Last updated at {formatTime(lastUpdated)}
+                </p>
+              )}
             </div>
+
           </div>
 
-          <button
-            type="button"
-            onClick={loadDetails}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw
-              size={17}
-              className={loading ? "animate-spin" : ""}
-            />
+          <div className="flex gap-2">
 
-            Refresh
-          </button>
+            {/* REFRESH */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+              className="flex min-w-[130px] items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading || refreshing ? "animate-spin" : ""}`}
+              />
+
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+
+          </div>
         </div>
 
-        {/* Read-only notice */}
-        <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        {/* READ-ONLY NOTICE */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           This is a read-only dashboard detail page. Data is displayed directly
           from the inventory database.
         </div>
 
-        {/* Error */}
+        {/* ERROR */}
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            <AlertCircle size={20} className="mt-0.5 shrink-0" />
+          <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
 
-            <div>
-              <p className="font-semibold">
-                Unable to load details
-              </p>
+            <AlertTriangle className="h-5 w-5 shrink-0" />
 
-              <p className="mt-1 text-sm">
-                {error}
-              </p>
+            <span>{error}</span>
+
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="ml-auto rounded-md p-1 transition hover:bg-red-100"
+              aria-label="Dismiss error"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+          </div>
+        )}
+
+        {/* SUMMARY */}
+        {!loading && summaryEntries.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {summaryEntries.map(([key, value]) => (
+              <Info
+                key={key}
+                label={key.replace(/([A-Z])/g, " $1")}
+                value={
+                  typeof value === "number"
+                    ? value.toLocaleString("en-IN")
+                    : String(value ?? "-")
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {/* DETAILS TABLE */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+          {/* TOP PROGRESS BAR (while refreshing) */}
+          {refreshing && (
+            <div className="absolute left-0 top-0 z-20 h-0.5 w-full overflow-hidden bg-slate-100">
+              <div className="details-progress-bar h-full w-1/4 rounded-full bg-slate-900" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Summary */}
-        {summary && !loading && (
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Object.entries(summary)
-              .slice(0, 4)
-              .map(([key, value]) => (
-                <div
-                  key={key}
-                  className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    {key.replace(/([A-Z])/g, " $1")}
-                  </p>
-
-                  <p className="mt-2 text-2xl font-bold text-gray-900">
-                    {typeof value === "number"
-                      ? value.toLocaleString("en-IN")
-                      : String(value ?? "-")}
-                  </p>
-                </div>
-              ))}
-          </div>
-        )}
-
-        {/* Main Card */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b border-gray-200 px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {config.title}
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  {loading
-                    ? "Loading data..."
-                    : `${data.length} record${
-                        data.length === 1 ? "" : "s"
-                      } found`}
-                </p>
+          {/* FLOATING "REFRESHING" PILL (same as Sales.jsx) */}
+          {refreshing && (
+            <div className="details-overlay-in pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-24 backdrop-blur-[1px]">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-lg">
+                <RefreshCw className="h-4 w-4 animate-spin text-slate-900" />
               </div>
             </div>
+          )}
+
+          {/* RECORD COUNT */}
+          <div className="border-b border-slate-200 px-5 py-4">
+
+            <h3 className="font-semibold text-slate-900">
+              {config.title}
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {loading
+                ? "Loading data..."
+                : `${data.length} record${data.length === 1 ? "" : "s"} found.`}
+            </p>
+
           </div>
 
+          {/* SKELETON ONLY ON FIRST LOAD */}
           {loading ? (
-            <LoadingState />
+
+            <DetailsTableSkeleton headings={config.headings} />
+
+          ) : data.length === 0 ? (
+
+            <div className="py-16 text-center">
+
+              <Icon className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+
+              <p className="font-medium text-slate-700">
+                {config.emptyText}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Records will appear here once they are available.
+              </p>
+
+            </div>
+
           ) : (
-            renderContent()
+
+            <div
+              className={`overflow-x-auto transition-opacity duration-200 ${
+                refreshing ? "opacity-70" : "opacity-100"
+              }`}
+            >
+
+              <table className="w-full min-w-[950px] text-left text-sm">
+
+                <DetailsTableHead headings={config.headings} />
+
+                <tbody className="divide-y divide-slate-100">
+
+                  {data.map((item, index) => (
+                    <tr
+                      key={`${item.id ?? index}-${refreshKey}`}
+                      className="details-row-in transition hover:bg-slate-50"
+                      style={{
+                        animationDelay: `${Math.min(index, 12) * 30}ms`,
+                      }}
+                    >
+                      {ROW_CELLS[pageType](item, index)}
+                    </tr>
+                  ))}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
           )}
+
         </div>
+
       </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const normalized = String(status || "")
-    .toUpperCase()
-    .replaceAll("_", " ");
-
-  let classes =
-    "bg-gray-100 text-gray-700";
-
-  if (
-    normalized === "COMPLETED" ||
-    normalized === "IN STOCK" ||
-    normalized === "HEALTHY" ||
-    normalized === "RECEIVED"
-  ) {
-    classes = "bg-green-100 text-green-700";
-  }
-
-  if (
-    normalized === "LOW STOCK" ||
-    normalized === "PENDING"
-  ) {
-    classes = "bg-yellow-100 text-yellow-700";
-  }
-
-  if (
-    normalized === "OUT OF STOCK" ||
-    normalized === "CANCELLED" ||
-    normalized === "DAMAGE"
-  ) {
-    classes = "bg-red-100 text-red-700";
-  }
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${classes}`}
-    >
-      {normalized || "UNKNOWN"}
-    </span>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="flex min-h-[300px] items-center justify-center">
-      <div className="flex items-center gap-3 text-gray-500">
-        <RefreshCw size={20} className="animate-spin" />
-        <span>Loading...</span>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ message }) {
-  return (
-    <div className="flex min-h-[300px] items-center justify-center px-6">
-      <div className="text-center">
-        <Package
-          size={42}
-          className="mx-auto mb-3 text-gray-300"
-        />
-
-        <p className="text-sm text-gray-500">
-          {message}
-        </p>
-      </div>
-    </div>
+    </>
   );
 }

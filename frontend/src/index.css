@@ -67,3 +67,24 @@ table {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+@keyframes productPageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-page-transition {
+  animation: productPageFadeIn 300ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-page-transition {
+    animation: none;
+  }
+}
