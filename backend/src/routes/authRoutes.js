@@ -8,6 +8,7 @@ import {
   resetPassword,
   updateProfile,
   googleLogin,
+  setPassword,
 } from "../controllers/authController.js";
 
 import { authenticate } from "../middleware/auth.js";
@@ -28,6 +29,9 @@ router.get("/me", authenticate, me);
 
 // Update currently logged-in user's profile
 router.put("/profile", authenticate, updateProfile);
+
+// Set or change password (logged-in users only)
+router.put("/password", authenticate, setPassword);
 
 // Forgot password
 router.post("/forgot-password", forgotPassword);

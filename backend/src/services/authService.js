@@ -15,6 +15,7 @@ const publicUser = (user) => ({
   email: user.email,
   role: user.role,
   avatar: user.avatar,
+  hasPassword: Boolean(user.passwordHash),
 });
 
 // ======================================================
@@ -103,10 +104,10 @@ export const loginUser = async ({ email, password }) => {
     throw error;
   }
 
-  // Google-only account (no password set)
+  // Account created with Google and no password set yet
   if (!user.passwordHash) {
     const error = new Error(
-      "This account uses Google sign-in. Please log in with Google."
+      "This account has no password yet. Log in with Google, then set a password in your profile."
     );
     error.statusCode = 400;
     throw error;
@@ -219,6 +220,61 @@ export const getMe = async (id) => {
   }
 
   return publicUser(user);
+};
+
+// ======================================================
+// SET OR CHANGE PASSWORD (logged-in user)
+// ======================================================
+
+export const setPasswordUser = async (
+  userId,
+  { currentPassword, newPassword }
+) => {
+  if (!newPassword || newPassword.length < 6) {
+    const error = new Error("Password must be at least 6 characters");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Users who already have a password must prove they know it.
+  if (user.passwordHash) {
+    if (!currentPassword) {
+      const error = new Error("Current password is required");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+
+    if (!valid) {
+      // 400, not 401: api.js clears the token on every 401
+      const error = new Error("Current password is incorrect");
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+  return {
+    message: "Password saved. You can now log in with email and password.",
+    user: publicUser(updated),
+  };
 };
 
 // ======================================================

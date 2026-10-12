@@ -6,6 +6,7 @@ import {
   updateProfileUser,
   googleLoginUser,
   resetPasswordUser,
+  setPasswordUser,
 } from "../services/authService.js";
 
 // ======================================================
@@ -55,6 +56,7 @@ export const googleLogin = async (req, res, next) => {
 
     return res.status(200).json(result);
   } catch (error) {
+    console.error("GOOGLE LOGIN ERROR:", error);
     return next(error);
   }
 };
@@ -129,6 +131,30 @@ export const me = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       user,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ======================================================
+// SET OR CHANGE PASSWORD (logged-in user)
+// ======================================================
+
+export const setPassword = async (req, res, next) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized. Please log in.",
+      });
+    }
+
+    const result = await setPasswordUser(req.user.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      ...result,
     });
   } catch (error) {
     return next(error);
