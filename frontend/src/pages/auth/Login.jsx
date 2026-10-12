@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { toast } from "react-toastify";
 import {
   Eye,
   EyeOff,
@@ -45,7 +47,7 @@ const labelClass = "mb-1.5 block text-sm font-medium text-slate-700";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -120,8 +122,29 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    alert("Google Login will be connected with Google OAuth.");
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (loading) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      await googleLogin(credentialResponse.credential);
+
+      toast.success("Logged in with Google");
+      navigate("/dashboard");
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          "Google login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Google login failed. Please try again.");
   };
 
 
@@ -154,13 +177,12 @@ const Login = () => {
           <div className="login-card-in grid w-full max-w-[860px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[2fr_3fr]">
 
             {/* ==================================================
-                LEFT SIDE (same dark look as the app navbar)
+                LEFT SIDE
             ================================================== */}
 
             <div className="hidden bg-slate-950 p-8 text-white lg:flex lg:flex-col lg:justify-between">
 
               <div>
-                {/* BRAND (matches Navbar) */}
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-950 shadow-sm">
                     <Package className="h-5 w-5" strokeWidth={2.3} />
@@ -211,7 +233,7 @@ const Login = () => {
             <div className="w-full p-6 sm:p-10">
               <div className="mx-auto w-full max-w-sm">
 
-                {/* MOBILE BRAND (left panel is hidden on small screens) */}
+                {/* MOBILE BRAND */}
                 <div className="mb-6 flex items-center gap-2.5 lg:hidden">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white">
                     <Package className="h-5 w-5" strokeWidth={2.3} />
@@ -358,39 +380,21 @@ const Login = () => {
                 </div>
 
                 {/* GOOGLE */}
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                <div
+                  className={`flex justify-center ${
+                    loading ? "pointer-events-none opacity-60" : ""
+                  }`}
                 >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="shrink-0"
-                  >
-                    <path
-                      fill="#4285F4"
-                      d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.27-2.09 3.57-5.17 3.57-8.64Z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.13 0-5.78-2.11-6.73-4.95H1.27v3.09A12 12 0 0 0 12 24Z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.27 14.29A7.22 7.22 0 0 1 4.89 12c0-.79.14-1.56.38-2.29V6.62H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.38l4-3.09Z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.76c1.76 0 3.34.61 4.59 1.8l3.44-3.44C17.95 1.11 15.24 0 12 0A12 12 0 0 0 1.27 6.62l4 3.09C6.22 6.87 8.87 4.76 12 4.76Z"
-                    />
-                  </svg>
-
-                  <span>Continue with Google</span>
-                </button>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    text="continue_with"
+                    shape="rectangular"
+                    theme="outline"
+                    size="large"
+                    width="320"
+                  />
+                </div>
 
                 {/* REGISTER */}
                 <p className="mt-6 text-center text-sm text-slate-500">

@@ -18,10 +18,12 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "@react-oauth/google": "^0.13.5",
     "bcryptjs": "3.0.2",
     "cors": "2.8.5",
     "dotenv": "17.2.3",
     "express": "5.1.0",
+    "google-auth-library": "^11.2.0",
     "jsonwebtoken": "9.0.2",
     "nodemailer": "^10.0.16",
     "pg": "8.16.3"

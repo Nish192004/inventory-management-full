@@ -1,6 +1,6 @@
-
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import prisma from "../config/prisma.js";
 import { randomBytes, createHash } from "node:crypto";
 import { sendPasswordResetEmail } from "../utils/sendEmail.js";
@@ -14,6 +14,7 @@ const publicUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  avatar: user.avatar,
 });
 
 // ======================================================
@@ -39,17 +40,13 @@ const generateToken = (user) =>
 
 export const registerUser = async ({ name, email, password }) => {
   if (!name?.trim() || !email?.trim() || !password) {
-    const error = new Error(
-      "Name, email and password are required"
-    );
+    const error = new Error("Name, email and password are required");
     error.statusCode = 400;
     throw error;
   }
 
   if (password.length < 6) {
-    const error = new Error(
-      "Password must be at least 6 characters"
-    );
+    const error = new Error("Password must be at least 6 characters");
     error.statusCode = 400;
     throw error;
   }
@@ -91,9 +88,7 @@ export const loginUser = async ({ email, password }) => {
   const normalizedEmail = email?.trim().toLowerCase();
 
   if (!normalizedEmail || !password) {
-    const error = new Error(
-      "Email and password are required"
-    );
+    const error = new Error("Email and password are required");
     error.statusCode = 400;
     throw error;
   }
@@ -108,15 +103,92 @@ export const loginUser = async ({ email, password }) => {
     throw error;
   }
 
-  const passwordValid = await bcrypt.compare(
-    password,
-    user.passwordHash
-  );
+  // Google-only account (no password set)
+  if (!user.passwordHash) {
+    const error = new Error(
+      "This account uses Google sign-in. Please log in with Google."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const passwordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!passwordValid) {
     const error = new Error("Invalid email or password");
     error.statusCode = 401;
     throw error;
+  }
+
+  if (!user.isActive) {
+    const error = new Error("Your account is inactive");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return {
+    token: generateToken(user),
+    user: publicUser(user),
+  };
+};
+
+// ======================================================
+// GOOGLE LOGIN
+// ======================================================
+
+export const googleLoginUser = async (credential) => {
+  if (!credential) {
+    const error = new Error("Google credential is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Created inside the function so process.env is already loaded
+  const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    const error = new Error("Invalid Google token");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const { email, name, picture, sub, email_verified } = payload;
+
+  if (!email || !email_verified) {
+    const error = new Error("Google email is not verified");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const normalizedEmail = email.toLowerCase();
+
+  let user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name: name || normalizedEmail.split("@")[0],
+        email: normalizedEmail,
+        googleId: sub,
+        avatar: picture,
+        role: "STAFF",
+      },
+    });
+  } else if (!user.googleId) {
+    // Existing email/password user: link their Google account
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { googleId: sub, avatar: user.avatar || picture },
+    });
   }
 
   if (!user.isActive) {
@@ -174,15 +246,10 @@ export const forgotPasswordUser = async ({ email }) => {
     return { message };
   }
 
-  // Generate a secure random token.
   const token = randomBytes(32).toString("hex");
 
-  // Store only the hash of the token.
-  const tokenHash = createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
 
-  // Token expires after 15 minutes.
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
   await prisma.user.update({
@@ -207,13 +274,11 @@ export const forgotPasswordUser = async ({ email }) => {
     throw new Error("FRONTEND_URL is not configured");
   }
 
-  const resetUrl =
-    `${frontendUrl.replace(/\/+$/, "")}/reset-password?token=${token}`;
+  const resetUrl = `${frontendUrl.replace(/\/+$/, "")}/reset-password?token=${token}`;
 
   try {
     await sendPasswordResetEmail(user.email, resetUrl);
   } catch (error) {
-    // Clear the token if the email could not be sent.
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -227,6 +292,7 @@ export const forgotPasswordUser = async ({ email }) => {
 
   return { message };
 };
+
 // ======================================================
 // UPDATE CURRENT USER PROFILE
 // ======================================================
@@ -234,14 +300,12 @@ export const forgotPasswordUser = async ({ email }) => {
 export const updateProfileUser = async (userId, profileData) => {
   const { name, email } = profileData;
 
-  // Validate name
   if (name !== undefined && !name?.trim()) {
     const error = new Error("Name cannot be empty");
     error.statusCode = 400;
     throw error;
   }
 
-  // Validate email
   if (email !== undefined && !email?.trim()) {
     const error = new Error("Email cannot be empty");
     error.statusCode = 400;
@@ -250,7 +314,6 @@ export const updateProfileUser = async (userId, profileData) => {
 
   const data = {};
 
-  // Only allow these fields to be updated.
   if (name !== undefined) {
     data.name = name.trim();
   }
@@ -265,7 +328,6 @@ export const updateProfileUser = async (userId, profileData) => {
     throw error;
   }
 
-  // Ensure the user exists.
   const existingUser = await prisma.user.findUnique({
     where: { id: userId },
   });
@@ -276,7 +338,6 @@ export const updateProfileUser = async (userId, profileData) => {
     throw error;
   }
 
-  // Prevent duplicate email addresses.
   if (data.email && data.email !== existingUser.email) {
     const emailExists = await prisma.user.findUnique({
       where: { email: data.email },
@@ -289,7 +350,6 @@ export const updateProfileUser = async (userId, profileData) => {
     }
   }
 
-  // Update only the authenticated user's record.
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data,
@@ -304,24 +364,18 @@ export const updateProfileUser = async (userId, profileData) => {
 
 export const resetPasswordUser = async ({ token, password }) => {
   if (!token || !password) {
-    const error = new Error(
-      "Token and password are required"
-    );
+    const error = new Error("Token and password are required");
     error.statusCode = 400;
     throw error;
   }
 
   if (password.length < 6) {
-    const error = new Error(
-      "Password must be at least 6 characters"
-    );
+    const error = new Error("Password must be at least 6 characters");
     error.statusCode = 400;
     throw error;
   }
 
-  const tokenHash = createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
 
   const user = await prisma.user.findFirst({
     where: {
@@ -333,9 +387,7 @@ export const resetPasswordUser = async ({ token, password }) => {
   });
 
   if (!user) {
-    const error = new Error(
-      "Invalid or expired reset link"
-    );
+    const error = new Error("Invalid or expired reset link");
     error.statusCode = 400;
     throw error;
   }

@@ -1,10 +1,10 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 
 import {
   getCurrentUser,
   loginUser,
   registerUser,
+  googleLoginRequest,
 } from "../services/authService";
 
 const AuthContext = createContext(null);
@@ -19,6 +19,19 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
     });
+
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+    }
+
+    setUser(data.user);
+
+    return data;
+  };
+
+  // GOOGLE LOGIN
+  const googleLogin = async (credential) => {
+    const data = await googleLoginRequest(credential);
 
     if (data.token) {
       localStorage.setItem("token", data.token);
@@ -85,6 +98,7 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         login,
+        googleLogin,
         register,
         logout,
       }}

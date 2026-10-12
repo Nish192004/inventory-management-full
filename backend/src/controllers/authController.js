@@ -4,6 +4,8 @@ import {
   registerUser,
   forgotPasswordUser,
   updateProfileUser,
+  googleLoginUser,
+  resetPasswordUser,
 } from "../services/authService.js";
 
 // ======================================================
@@ -35,6 +37,29 @@ export const login = async (req, res, next) => {
 };
 
 // ======================================================
+// GOOGLE LOGIN
+// ======================================================
+
+export const googleLogin = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: "Google credential is required",
+      });
+    }
+
+    const result = await googleLoginUser(credential);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ======================================================
 // FORGOT PASSWORD
 // ======================================================
 
@@ -50,6 +75,32 @@ export const forgotPassword = async (req, res, next) => {
     }
 
     const result = await forgotPasswordUser({ email });
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ======================================================
+// RESET PASSWORD
+// ======================================================
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Token and password are required",
+      });
+    }
+
+    const result = await resetPasswordUser({ token, password });
 
     return res.status(200).json({
       success: true,
@@ -97,10 +148,7 @@ export const updateProfile = async (req, res, next) => {
       });
     }
 
-    const result = await updateProfileUser(
-      req.user.id,
-      req.body
-    );
+    const result = await updateProfileUser(req.user.id, req.body);
 
     return res.status(200).json({
       success: true,

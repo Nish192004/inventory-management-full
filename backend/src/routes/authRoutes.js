@@ -5,7 +5,9 @@ import {
   me,
   register,
   forgotPassword,
+  resetPassword,
   updateProfile,
+  googleLogin,
 } from "../controllers/authController.js";
 
 import { authenticate } from "../middleware/auth.js";
@@ -18,6 +20,9 @@ router.post("/register", register);
 // Login user
 router.post("/login", login);
 
+// Google login (public route, no authenticate middleware)
+router.post("/google", googleLogin);
+
 // Get currently logged-in user
 router.get("/me", authenticate, me);
 
@@ -26,5 +31,8 @@ router.put("/profile", authenticate, updateProfile);
 
 // Forgot password
 router.post("/forgot-password", forgotPassword);
+
+// Reset password (public route, uses the emailed token)
+router.post("/reset-password", resetPassword);
 
 export default router;

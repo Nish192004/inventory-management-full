@@ -12,6 +12,12 @@ export const loginUser = async (userData) => {
   return response.data;
 };
 
+// GOOGLE LOGIN
+export const googleLoginRequest = async (credential) => {
+  const response = await api.post("/auth/google", { credential });
+  return response.data; // { token, user }
+};
+
 // GET CURRENT LOGGED-IN USER
 export const getCurrentUser = async () => {
   const response = await api.get("/auth/me");
